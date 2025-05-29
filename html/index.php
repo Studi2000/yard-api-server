@@ -1,16 +1,9 @@
 <?php
 // index.php – Front controller for RustDesk Client API
 
-// Load project configuration
 require_once __DIR__ . '/config/config.php';
-
-// Autoload dependencies (Firebase JWT)
 require_once __DIR__ . '/vendor/autoload.php';
-
-// Database connection
 require_once __DIR__ . '/lib/db.php';
-
-// YardApi controller class
 require_once __DIR__ . '/lib/class_yardapi.php';
 
 header('Content-Type: application/json');
@@ -18,10 +11,12 @@ header('Content-Type: application/json');
 $uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $route  = rtrim(str_replace('/api', '', $uri), '/');
 $method = $_SERVER['REQUEST_METHOD'];
-
 $controller = new YardApi($pdo);
 
 switch ("{$method} {$route}") {
+    case 'GET /login-options':
+        $controller->loginOptions();
+        break;
     case 'POST /login':
         $controller->login();
         break;

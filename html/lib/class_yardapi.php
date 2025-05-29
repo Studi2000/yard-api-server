@@ -1,6 +1,4 @@
 <?php
-// lib/class_yardapi.php – YardApi controller class
-
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
@@ -12,8 +10,8 @@ class YardApi {
     public function __construct(PDO $pdo) {
         $this->pdo         = $pdo;
         $config            = require __DIR__ . '/../config/config.php';
-        $this->jwtSecret   = $config['JWT_SECRET'];
-        $this->publicKey   = $config['RD_PUBLIC_KEY'];
+        $this->jwtSecret   = $config['JWT_SECRET'];        // from config
+        $this->publicKey   = $config['RD_PUBLIC_KEY'];     // raw key
     }
 
     /** Generate a JWT for a given user. */
@@ -33,25 +31,32 @@ class YardApi {
         return JWT::decode($token, new Key($this->jwtSecret, 'HS256'));
     }
 
-    /** Handle login request. POST /login */
+    /** GET /api/login-options */
+    public function loginOptions(): void {
+        // Nur Passwort‑Login unterstützen
+        $methods = ['password'];
+        echo json_encode(['methods' => $methods]);
+    }
+
+    /** POST /api/login */
     public function login(): void {
         $data = json_decode(file_get_contents('php://input'), true);
         $username = $data['username'] ?? '';
         $password = $data['password'] ?? '';
 
+        // Query user record (password hashed with PASSWORD_ARGON2I)
         $stmt = $this->pdo->prepare(
-            'SELECT id, username, password_hash, display_name, image_url FROM users WHERE username = ?'
+            'SELECT id, username, password_hash FROM users WHERE username = ?'
         );
         $stmt->execute([$username]);
         $user = $stmt->fetch();
 
+        // Verify password
         if ($user && password_verify($password, $user['password_hash'])) {
             $token = $this->generateJwt($user['id'], $user['username']);
             echo json_encode([
-                'token'        => $token,
-                'id'           => $user['username'],
-                'display_name' => $user['display_name'] ?? $user['username'],
-                'image_url'    => $user['image_url'] ?? ''
+                'token' => $token,
+                'id'    => $user['username']
             ]);
             return;
         }
@@ -60,10 +65,10 @@ class YardApi {
         echo json_encode(['message' => 'Login failed']);
     }
 
-    /** Handle token validation and public key delivery. POST /authorized_keys */
+    /** POST /api/authorized_keys */
     public function authorizedKeys(): void {
-        $auth = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-        if (!preg_match('/Bearer\s+(\S+)/', $auth, $m)) {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        if (!preg_match('/Bearer\s+(\S+)/', $authHeader, $m)) {
             http_response_code(401);
             echo json_encode(['message' => 'No token provided']);
             return;
@@ -77,17 +82,17 @@ class YardApi {
             return;
         }
 
-        // Return the raw public key from config
         echo json_encode(['pub_key' => $this->publicKey]);
     }
 
+    /** POST /api/logout */
+    public function logout(): void {
+        http_response_code(204);
+    }
+
+    /** GET /api/version */
     public function version(): void {
         $config = require __DIR__ . '/../config/config.php';
         echo json_encode(['version' => $config['VERSION']]);
-    }
-
-    /** Handle logout. POST /logout */
-    public function logout(): void {
-        http_response_code(204);
     }
 }
