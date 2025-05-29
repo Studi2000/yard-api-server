@@ -6,8 +6,6 @@ require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/class_yardapi.php';
 
-
-
 header('Content-Type: application/json');
 
 // Parse the incoming URI and request method
@@ -33,6 +31,30 @@ switch ("{$method} {$uri}") {
         break;
     case 'GET /api/version':
         $controller->version();
+        break;
+    case 'POST /api/sysinfo':
+        $controller->sysinfo();
+        break;
+    case 'POST /api/heartbeat':
+        $controller->heartbeat();
+        break;
+    case 'GET /api/ab':
+        $controller->addressBook();
+        break;
+    case 'POST /api/ab/personal':
+        $controller->addressBookPersonal();
+        break;
+    case 'POST /api/currentUser':
+        $controller->currentUser();
+        break;
+    case 'GET /api/device-group/accessible':
+        $controller->deviceGroupAccessible();
+        break;
+    case 'GET /api/users':
+        $controller->users();
+        break;
+    case 'GET /api/peers':
+        $controller->peers();
         break;
     default:
         http_response_code(404);

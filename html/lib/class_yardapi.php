@@ -105,9 +105,85 @@ class YardApi {
         echo json_encode(['pub_key' => $this->publicKey]);
     }
 
+    public function sysinfo() {
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        http_response_code(200);
+        echo json_encode(['message' => 'SYSINFO_UPDATED']);
+    }
+
+    public function heartbeat() {
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        http_response_code(200);
+        echo json_encode(['message' => 'HEARTBEAT_RECEIVED']);
+    }
+
+    // Returns an empty address book for now
+    public function addressBook()
+    {
+        http_response_code(200);
+        echo json_encode(['list' => []]);
+    }
+
+    // Accepts any personal address book entry, but does nothing yet
+    public function addressBookPersonal()
+    {
+        $data = json_decode(file_get_contents('php://input'), true);
+        // Here you could store $data into the DB later
+        http_response_code(200);
+        echo json_encode(['message' => 'ok']);
+    }
+
     /** POST /api/logout */
     public function logout(): void {
         http_response_code(204);
+    }
+
+    public function currentUser() {
+        // Typically, you'd use the JWT to identify the user
+        // For now, just demo with static or session values
+
+        // Example: extract user id and username from the JWT (je nach Implementierung!)
+        $jwtData = $this->getJwtData();
+        $userId = $jwtData['sub'] ?? 1;
+        $username = $jwtData['username'] ?? 'studi';
+
+        http_response_code(200);
+        echo json_encode([
+            'id' => $userId,
+            'username' => $username,
+            'name' => $username,
+            'roles' => [],
+            'groups' => [],
+            'avatar' => ""
+        ]);
+    }
+
+    public function deviceGroupAccessible() {
+
+        http_response_code(200);
+        echo json_encode([
+            'list' => [],
+            'total' => 0
+        ]);
+    }
+
+    public function users() {
+
+        http_response_code(200);
+        echo json_encode([
+            'list' => [],
+            'total' => 0
+        ]);
+    }
+
+    public function peers() {
+        http_response_code(200);
+        echo json_encode([
+            'list' => [],
+            'total' => 0
+        ]);
     }
 
     /** GET /api/version */
