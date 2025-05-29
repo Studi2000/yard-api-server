@@ -72,13 +72,16 @@ class YardApi {
                 ]
             ]);
 
-            file_put_contents('rd_login_raw.txt',
-                "Response:\n" . json_encode(['token' => $jwt]),
-                FILE_APPEND);
-
         } else {
             http_response_code(401);
-            echo json_encode(['message' => 'Login failed']);
+            echo json_encode([
+                'access_token' => null,
+                'type' => 'access_token',
+                'user' => [
+                    'name' => $username
+                ],
+                'error' => 'Login failed'
+            ]);
         }
     }
 
