@@ -1,38 +1,41 @@
 <?php
+// html/api/index.php – Front controller for RustDesk Client API
 
-require_once __DIR__ . '/../src/auth.php';
+// Load project configuration
 require_once __DIR__ . '/../config/config.php';
+
+// Autoload dependencies (Firebase JWT)
+require_once __DIR__ . '/../vendor/autoload.php';
+
+// Database connection
 require_once __DIR__ . '/../src/db.php';
 
-$config = require __DIR__ . '/../config/config.php';
-$secret = $config['jwt_secret'];
-$pdo = require __DIR__ . '/../src/db.php';
-
-$method = $_SERVER['REQUEST_METHOD'];
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+// YardApi controller class
+require_once __DIR__ . '/../src/class_yardapi.php';
 
 header('Content-Type: application/json');
 
-// Normalize the path
-$path = rtrim($path, '/');
+$uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$route  = rtrim(str_replace('/api', '', $uri), '/');
+$method = $_SERVER['REQUEST_METHOD'];
 
-switch ("$method $path") {
-    case 'POST /api/auth/login':
-        $data = json_decode(file_get_contents('php://input'), true);
-        login($data, $pdo, $secret);
+$controller = new YardApi($pdo);
+
+switch ("{$method} {$route}") {
+    case 'POST /login':
+        $controller->login();
         break;
-
-    case 'GET /api/auth/me':
-        $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-        me($authHeader, $secret);
+    case 'POST /authorized_keys':
+        $controller->authorizedKeys();
         break;
-
-    case 'POST /api/auth/register':
-        $data = json_decode(file_get_contents('php://input'), true);
-        register($data, $pdo);
+    case 'POST /logout':
+        $controller->logout();
         break;
-
+    case 'GET /version':
+        $controller->version();
+        break;
     default:
         http_response_code(404);
-        echo json_encode(['error' => 'Endpoint not found']);
+        echo json_encode(['message' => 'Endpoint not found']);
+        break;
 }
