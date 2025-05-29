@@ -15,14 +15,13 @@ class YardApi {
     }
 
     /** Generate a JWT for a given user. */
-    protected function generateJwt(int|string $uid, string $username): string {
+    private function generateJwt($userId) {
         $payload = [
-            'iss'      => 'yard-api',
-            'sub'      => $uid,
-            'username' => $username,
-            'exp'      => time() + 3600,
+            'iss' => 'YARD API',
+            'sub' => $userId,
+            'iat' => time(),
+            'exp' => time() + (60 * 60) // 1 Stunde gültig
         ];
-
         return JWT::encode($payload, $this->jwtSecret, 'HS256');
     }
 
@@ -39,30 +38,47 @@ class YardApi {
     }
 
     /** POST /api/login */
-    public function login(): void {
+    public function login() {
+
+        // Read JSON input from RustDesk
         $data = json_decode(file_get_contents('php://input'), true);
-        $username = $data['username'] ?? '';
-        $password = $data['password'] ?? '';
 
-        // Query user record (password hashed with PASSWORD_ARGON2I)
-        $stmt = $this->pdo->prepare(
-            'SELECT id, username, password_hash FROM users WHERE username = ?'
-        );
-        $stmt->execute([$username]);
-        $user = $stmt->fetch();
+        // Extract credentials
+        $username = trim($data['username']) ?? null;
+        $password = trim($data['password']) ?? null;
 
-        // Verify password
-        if ($user && password_verify($password, $user['password_hash'])) {
-            $token = $this->generateJwt($user['id'], $user['username']);
-            echo json_encode([
-                'token' => $token,
-                'id'    => $user['username']
-            ]);
+        if (!$username || !$password) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Username and password required']);
             return;
         }
 
-        http_response_code(401);
-        echo json_encode(['message' => 'Login failed']);
+        // Fetch user from database
+        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE username = ? limit 0,1");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch();
+
+        // Verify password with Argon2i
+        if ($user && password_verify($password, $user['password_hash'])) {
+
+            $jwt = $this->generateJwt($user['id']);
+            http_response_code(200);
+            echo json_encode([
+                'access_token' => $jwt,
+                'type' => 'access_token',
+                'user' => [
+                    'name' => $username
+                ]
+            ]);
+
+            file_put_contents('rd_login_raw.txt',
+                "Response:\n" . json_encode(['token' => $jwt]),
+                FILE_APPEND);
+
+        } else {
+            http_response_code(401);
+            echo json_encode(['message' => 'Login failed']);
+        }
     }
 
     /** POST /api/authorized_keys */

@@ -1,32 +1,36 @@
 <?php
-// index.php – Front controller for RustDesk Client API
 
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/lib/db.php';
 require_once __DIR__ . '/lib/class_yardapi.php';
 
+
+
 header('Content-Type: application/json');
 
-$uri    = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$route  = rtrim(str_replace('/api', '', $uri), '/');
+// Parse the incoming URI and request method
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
+
+// Initialize the controller
 $controller = new YardApi($pdo);
 
-switch ("{$method} {$route}") {
-    case 'GET /login-options':
+// Route the request strictly for /api endpoints
+switch ("{$method} {$uri}") {
+    case 'GET /api/login-options':
         $controller->loginOptions();
         break;
-    case 'POST /login':
+    case 'POST /api/login':
         $controller->login();
         break;
-    case 'POST /authorized_keys':
+    case 'POST /api/authorized_keys':
         $controller->authorizedKeys();
         break;
-    case 'POST /logout':
+    case 'POST /api/logout':
         $controller->logout();
         break;
-    case 'GET /version':
+    case 'GET /api/version':
         $controller->version();
         break;
     default:
