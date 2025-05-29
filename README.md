@@ -60,7 +60,7 @@ Instead, we interface with the client-side login and track session metadata for 
     CREATE DATABASE `yard-api-server` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     ```
 
-7. Configure database credentials in `src/db.php`.
+7. Rename `config/config.example.php` and configure your database credentials in `config/config.php`.
 
 8. Install dependencies:
 
