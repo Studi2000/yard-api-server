@@ -1,0 +1,39 @@
+# Ignore sensitive config files
+config/config.php
+
+# Ignore log, cache and temp directories
+logs/
+cache/
+tmp/
+
+# Ignore system files
+*.swp
+*.swo
+*.bak
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Composer dependencies
+/vendor/
+
+# Ignore environment/config examples (optional)
+.env
+.env.*
+
+# PHPUnit test output (if applicable)
+phpunit.xml
+phpunit.result.cache
+coverage/
+
+# Ignore IDE/project files
+.idea/
+.vscode/
+*.code-workspace
+
+# Apache artifacts
+.htaccess
+
+# Ignore compiled or uploaded files (if any)
+uploads/
+storage/
