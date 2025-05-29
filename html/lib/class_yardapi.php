@@ -1,4 +1,5 @@
 <?php
+
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
@@ -43,9 +44,9 @@ class YardApi {
         // Read JSON input from RustDesk
         $data = json_decode(file_get_contents('php://input'), true);
 
-        // Extract credentials
-        $username = trim($data['username']) ?? null;
-        $password = trim($data['password']) ?? null;
+        // Extract and sanitize credentials
+        $username = isset($data['username']) ? trim((string)$data['username']) : '';
+        $password = isset($data['password']) ? trim((string)$data['password']) : '';
 
         if (!$username || !$password) {
             http_response_code(400);
