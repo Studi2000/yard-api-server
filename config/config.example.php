@@ -1,13 +1,21 @@
 <?php
-// config/config.php
+// config.php – Project configuration and constants
+// Adjust values to your environment
 
 return [
-    // Database connection settings
-    'db_host' => '127.0.0.1',
-    'db_name' => 'your_db_name',
-    'db_user' => 'your_db_user',
-    'db_pass' => 'your_secure_db_password',
 
-    // JWT secret key
-    'jwt_secret' => 'your_super_secret_jwt_key',
+    // This project version
+    'VERSION' => '0.1.1',
+
+    // Your Database connection parameters
+    'DB_HOST'           => '127.0.0.1',      // MySQL host
+    'DB_NAME'           => 'your-db-name',   // Database name
+    'DB_USER'           => 'your-user-name', // Database user
+    'DB_PASS'           => 'your-password',  // Database password
+
+    // Your JWT secret for signing tokens
+    'JWT_SECRET'        => 'your-jwt-secret',
+
+    // Your RustDesk Server Key from id_ed25519.pub
+    'RD_PUBLIC_KEY'     => 'your-rd-public-key',
 ];
