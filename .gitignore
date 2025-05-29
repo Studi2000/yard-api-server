@@ -1,5 +1,5 @@
 # Ignore sensitive config files
-config/config.php
+html/config/config.php
 
 # Ignore log, cache and temp directories
 logs/
@@ -15,7 +15,7 @@ tmp/
 Thumbs.db
 
 # Composer dependencies
-/vendor/
+/html/vendor/
 
 # Ignore environment/config examples (optional)
 .env

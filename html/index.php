@@ -1,17 +1,17 @@
 <?php
-// html/api/index.php – Front controller for RustDesk Client API
+// index.php – Front controller for RustDesk Client API
 
 // Load project configuration
-require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/config/config.php';
 
 // Autoload dependencies (Firebase JWT)
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 // Database connection
-require_once __DIR__ . '/../src/db.php';
+require_once __DIR__ . '/lib/db.php';
 
 // YardApi controller class
-require_once __DIR__ . '/../src/class_yardapi.php';
+require_once __DIR__ . '/lib/class_yardapi.php';
 
 header('Content-Type: application/json');
 

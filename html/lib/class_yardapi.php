@@ -1,5 +1,5 @@
 <?php
-// src/class_yardapi.php – YardApi controller class
+// lib/class_yardapi.php – YardApi controller class
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
