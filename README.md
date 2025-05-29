@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # YARD API Server
 
 **YARD** = *Yet Another RustDesk API Server*
@@ -15,13 +14,13 @@ The goal of this project is to provide a lightweight, PHP-based API layer for ma
 
 - 🎯 **User authentication** for RustDesk clients using a custom `/api/Auth/Login` endpoint
 - 🕒 **Logging of remote support sessions** including:
-    - Technician ID
-    - Client ID or RustDesk ID
-    - Start & end timestamps
-    - Session duration (for billing purposes)
+   - Technician ID
+   - Client ID or RustDesk ID
+   - Start & end timestamps
+   - Session duration (for billing purposes)
 - 🗂️ Optional features such as:
-    - Address book or contact lists (per technician/client)
-    - Team-based permissions and audit trails
+   - Address book or contact lists (per technician/client)
+   - Team-based permissions and audit trails
 - 💡 All implemented in **PHP 8.3** using a **MySQL/MariaDB backend**
 - 🔐 Token-based security via **JWT (JSON Web Token)**
 
@@ -29,6 +28,7 @@ The goal of this project is to provide a lightweight, PHP-based API layer for ma
 
 We do **not** modify the RustDesk core or its server (`hbbs`/`hbbr`) components.  
 Instead, we interface with the client-side login and track session metadata for service documentation and billing.
+
 
 
 ## 🔧 Setup (Apache + PHP 8.3)
@@ -68,7 +68,7 @@ Instead, we interface with the client-side login and track session metadata for 
     composer install
     ```
 
-9. Access the API via: `https://yourdomain/`
+9. Access the API via: `http://yourdomain-or-ip/`
 
 ## 📜 License
 
@@ -83,7 +83,3 @@ You must disclose source code for any modifications you deploy or distribute.
 
 Andreas Studenski  
 [webcoding24.com](https://www.webcoding24.com)
-=======
-# yard-api-server
-Yet Another RustDesk API SERVER
->>>>>>> origin/main
