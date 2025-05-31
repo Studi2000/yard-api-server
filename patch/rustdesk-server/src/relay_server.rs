@@ -62,8 +62,6 @@ fn post_session_event(event: &str, uuid: &str, viewer_ip: &str, target_ip: &str,
     }
 }
 
-
-
 type Usage = (usize, usize, usize, usize);
 
 lazy_static::lazy_static! {

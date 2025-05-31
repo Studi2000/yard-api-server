@@ -24,7 +24,8 @@ A **modern, open-source PHP 8.3 REST API** for authentication, billing, and sess
 * **Integration with RustDesk**
 
     * Uses a custom REST interface for login and session data
-    * *Requires a small patch in* [`relay_server.rs`](https://github.com/rustdesk/rustdesk-server) *to forward session events*
+    * You find all changes 
+    * *Requires a small patch in* [`relay_server.rs`](https://github.com/Studi2000/yard-api-server/tree/master/patch/rustdesk-server) *to forward session events*
 * **Device & Peer Management**
 
     * Tracks all online/offline peers (clients) with full metadata
@@ -103,33 +104,33 @@ Below are the main tables used by YARD API Server for tracking users, peers, and
 
 ```sql
 CREATE TABLE `peers` (
-                         `id` varchar(32) NOT NULL,
-                         `uuid` varchar(64) NOT NULL,
-                         `ip_addr` varchar(64) DEFAULT NULL,
-                         `hostname` varchar(100) DEFAULT NULL,
-                         `username` varchar(64) DEFAULT NULL,
-                         `os` varchar(128) DEFAULT NULL,
-                         `version` varchar(32) DEFAULT NULL,
-                         `cpu` varchar(128) DEFAULT NULL,
-                         `memory` varchar(32) DEFAULT NULL,
-                         `last_seen` datetime NOT NULL
+     `id` varchar(32) NOT NULL,
+     `uuid` varchar(64) NOT NULL,
+     `ip_addr` varchar(64) DEFAULT NULL,
+     `hostname` varchar(100) DEFAULT NULL,
+     `username` varchar(64) DEFAULT NULL,
+     `os` varchar(128) DEFAULT NULL,
+     `version` varchar(32) DEFAULT NULL,
+     `cpu` varchar(128) DEFAULT NULL,
+     `memory` varchar(32) DEFAULT NULL,
+     `last_seen` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `session_events` (
-                                  `id` int(11) NOT NULL,
-                                  `event_type` varchar(10) NOT NULL,
-                                  `uuid` varchar(64) NOT NULL,
-                                  `viewer_ip` varchar(64) NOT NULL,
-                                  `target_ip` varchar(64) NOT NULL,
-                                  `target_id` varchar(32) DEFAULT NULL,
-                                  `event_time` datetime NOT NULL
+     `id` int(11) NOT NULL,
+     `event_type` varchar(10) NOT NULL,
+     `uuid` varchar(64) NOT NULL,
+     `viewer_ip` varchar(64) NOT NULL,
+     `target_ip` varchar(64) NOT NULL,
+     `target_id` varchar(32) DEFAULT NULL,
+     `event_time` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `users` (
-                         `id` int(11) NOT NULL,
-                         `username` varchar(255) NOT NULL,
-                         `password_hash` text NOT NULL,
-                         `display_name` varchar(200) DEFAULT NULL
+     `id` int(11) NOT NULL,
+     `username` varchar(255) NOT NULL,
+     `password_hash` text NOT NULL,
+     `display_name` varchar(200) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE `peers`
@@ -186,9 +187,6 @@ You must disclose source code for any modifications you deploy or distribute.
 ## 🧑‍💻 Author & Contact
 
 **Andreas Studenski**
-[webcoding24.com](https://www.webcoding24.com)
+[https://www.webcoding24.com](https://www.webcoding24.com)
 
 ---
-
-**Want to contribute or need help integrating the RustDesk relay server patch?**
-→ Open an Issue or pull request, or reach out via [webcoding24.com](https://www.webcoding24.com)!
