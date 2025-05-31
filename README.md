@@ -12,7 +12,7 @@ A **modern, open-source PHP 8.3 REST API** for authentication, billing, and sess
 > 
 > **To-Do:** Backend development with user registration, role management, client management, session monitoring.
 > 
-> *COMMING SOON™*
+> *COMING SOON™*
 
 ---
 
