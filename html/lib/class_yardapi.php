@@ -219,8 +219,6 @@ class YardApi {
             $data['timestamp']
         ]);
 
-        $this->logger("/api/session1", $data);
-
         if ($ok) {
             http_response_code(200);
             echo json_encode(['message' => 'Session event logged', 'target_id' => $data['target_id']]);
