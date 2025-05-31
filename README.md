@@ -3,7 +3,9 @@
 **YARD** = *Yet Another RustDesk API Server*
 
 A **modern, open-source PHP 8.3 REST API** for authentication, billing, and session logging for [RustDesk](https://rustdesk.com) remote desktop environments.
-**Ready for production use** in combination with RustDesk and your own relay server patch.
+**Ready for basic use** in combination with RustDesk and your own relay server patch.
+
+**Work is still in progress!**
 
 > **Status:** 🚀 **Production-ready** for authentication, session tracking & billing.
 > Active development for advanced features!
