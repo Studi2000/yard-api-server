@@ -8,7 +8,7 @@ class YardApi {
     protected PDO $pdo;
     protected string $jwtSecret;
     protected string $publicKey;
-    public $logging = true;
+    public $logging = false;
 
     public function __construct(PDO $pdo) {
         $this->pdo         = $pdo;
@@ -207,6 +207,16 @@ class YardApi {
             }
         }
 
+        // Convert MySQL timestamp
+        try {
+            $dt = new DateTime($data['timestamp']);
+            $mysqlTimestamp = $dt->format('Y-m-d H:i:s');
+        } catch (Exception $e) {
+            $mysqlTimestamp = date('Y-m-d H:i:s');
+        }
+
+        $target_id = $data['target_id'] ?? null;
+
         $stmt = $this->pdo->prepare(
             "INSERT INTO session_events (event_type, uuid, viewer_ip, target_ip, target_id, event_time) VALUES (?, ?, ?, ?, ?, ?)"
         );
@@ -215,8 +225,8 @@ class YardApi {
             $data['uuid'],
             $data['viewer_ip'],
             $data['target_ip'],
-            $data['target_id'],
-            $data['timestamp']
+            $target_id,
+            $mysqlTimestamp
         ]);
 
         if ($ok) {
