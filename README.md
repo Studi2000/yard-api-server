@@ -36,6 +36,7 @@ A **modern, open-source PHP 8.3 REST API** for authentication, billing, and sess
 
     * Tracks all online/offline peers (clients) with full metadata
     * Maps sessions to RustDesk clients for transparent user billing
+    * Delivered a small top like console tool **rdtop** (Rust) showing active peers (see /rdtool folder)
 * **Team & User Management**
 
     * User endpoints ready for future expansion (groups, address books, permissions)
@@ -89,6 +90,9 @@ Environment=YARD_API_URL=https://your-api-server.example.com/api/session
 
    ```sql
    CREATE DATABASE `yard-api-server` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE USER 'yard-api-server'@'127.0.0.1' IDENTIFIED BY 'YOUR-PASSWORD';
+   GRANT ALL PRIVILEGES ON `yard-api-server`.* TO 'yard-api-server'@'127.0.0.1';
+   FLUSH PRIVILEGES;
    ```
 6. **Configure:**
 
