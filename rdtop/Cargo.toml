@@ -1,0 +1,13 @@
+[package]
+name = "rdtop"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = { version = "0.4", features = ["clock"] }
+chrono-tz = "0.8"
+urlencoding = "2"
+dotenvy = "0.15"
+tui = "0.19"
+crossterm = "0.27"
+mysql = "24.0"
