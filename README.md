@@ -30,7 +30,7 @@ A **modern, open-source PHP 8.3 REST API** for authentication, billing, and sess
 * **Integration with RustDesk**
 
     * Uses a custom REST interface for login and session data
-    * You find all changes 
+    * You find all changes in the /patch directory of this project
     * *Requires a small patch in* [`relay_server.rs`](https://github.com/Studi2000/yard-api-server/tree/master/patch/rustdesk-server) *to forward session events*
 * **Device & Peer Management**
 
