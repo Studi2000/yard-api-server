@@ -56,6 +56,9 @@ switch ("{$method} {$uri}") {
     case 'GET /api/peers':
         $controller->peers();
         break;
+    case 'POST /api/session':
+        $controller->sessionEvent();
+        break;
     default:
         http_response_code(404);
         echo json_encode(['message' => 'Endpoint not found']);
