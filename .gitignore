@@ -20,6 +20,7 @@ Thumbs.db
 # Ignore environment/config examples (optional)
 .env
 .env.*
+html/payload.log
 
 # PHPUnit test output (if applicable)
 phpunit.xml
@@ -34,3 +35,4 @@ coverage/
 # Ignore compiled or uploaded files (if any)
 uploads/
 storage/
+rdtop/target
