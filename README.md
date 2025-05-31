@@ -164,7 +164,7 @@ COMMIT;
 ## 🔌 API Overview
 
 * `POST /api/login` – User login, returns JWT
-* `POST /api/sysinfo` – Client Meta Data 
+* `POST /api/sysinfo` – Client Meta Data (updates peer status)
 * `POST /api/heartbeat` – Client keepalive (updates peer status)
 * `POST /api/session` – Session event log (triggered by relay\_server.rs patch)
 * `GET /api/authorized_keys` – Public key for RustDesk
