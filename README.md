@@ -7,8 +7,12 @@ A **modern, open-source PHP 8.3 REST API** for authentication, billing, and sess
 
 **Work is still in progress!**
 
-> **Status:** 🚀 **Production-ready** for authentication, session tracking & billing.
+> **Status:** 🚀 **Production-ready** for authentication, session tracking.
 > Active development for advanced features!
+> 
+> **To-Do:** Backend development with user registration, role management, client management, session monitoring.
+> 
+> *COMMING SOON™*
 
 ---
 
