@@ -11,6 +11,7 @@ It is written in Rust and designed to serve as the foundation for future YARD Ad
 - **Builds with Cargo:** Easy to compile and deploy on any modern Linux system.
 - **Simple Release Workflow:** Ships with a `build.sh` script for fast building and installation.
 - **Clean CLI Structure:** Ready to be extended with powerful admin and diagnostic features.
+- CLI Tool is showing active peers, running and finished sessions, session duration
 
 ---
 

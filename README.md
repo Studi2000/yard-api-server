@@ -30,8 +30,9 @@ A **modern, open-source PHP 8.3 REST API** for authentication, billing, and sess
 * **Integration with RustDesk**
 
     * Uses a custom REST interface for login and session data
-    * You find all changes in the /patch directory of this project
-    * *Requires a small patch in* [`relay_server.rs`](https://github.com/Studi2000/yard-api-server/tree/master/patch/rustdesk-server) *to forward session events*
+    * Based on the great work of [rustdesk/rustdesk-server](https://github.com/rustdesk/rustdesk-server) 
+    * No code changes needed in RustDesk Server, YARD-API-Server runs without patching original sources!
+    * You also do NOT need to patch any RustDesk clients!
 * **Device & Peer Management**
 
     * Tracks all online/offline peers (clients) with full metadata
@@ -46,24 +47,6 @@ A **modern, open-source PHP 8.3 REST API** for authentication, billing, and sess
 * **Extensible Design**
 
     * Easily adapt or extend for your organization’s needs
-
----
-
-### 🔧 Environment Variable: `YARD_API_URL`
-
-Your patched `relay_server.rs` reads the **API server URL** from the environment variable `YARD_API_URL`.
-You must provide this variable to your `hbbr` systemd service (or when starting the binary), for example:
-
-```ini
-[Service]
-Environment=YARD_API_URL=https://your-api-server.example.com/api/session
-```
-
-* **If not set**, no session events will be sent to your PHP backend.
-* You can change the target at any time without rebuilding the relay server.
-* This makes your session event logging endpoint flexible and portable.
-
-**You do NOT need to patch any RustDesk clients!**
 
 ---
 
@@ -126,14 +109,14 @@ CREATE TABLE `peers` (
      `last_seen` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE `session_events` (
-     `id` int(11) NOT NULL,
-     `event_type` varchar(10) NOT NULL,
-     `uuid` varchar(64) NOT NULL,
-     `viewer_ip` varchar(64) NOT NULL,
-     `target_ip` varchar(64) NOT NULL,
-     `target_id` varchar(32) DEFAULT NULL,
-     `event_time` datetime NOT NULL
+CREATE TABLE `sessions` (
+    `id` int(11) NOT NULL,
+    `uuid` varchar(64) NOT NULL,
+    `start_time` datetime NOT NULL,
+    `end_time` datetime NOT NULL,
+    `viewer_name` varchar(32) NOT NULL,
+    `viewer_id` varchar(32) NOT NULL,
+    `target_id` varchar(32) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `users` (
@@ -143,20 +126,14 @@ CREATE TABLE `users` (
      `display_name` varchar(200) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `peers`
-    ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uniq_uuid` (`uuid`);
+ALTER TABLE `peers` ADD PRIMARY KEY (`id`), 
+    ADD UNIQUE KEY `uniq_uuid` (`uuid`);
 
-ALTER TABLE `session_events`
-    ADD PRIMARY KEY (`id`),
-  ADD KEY `uuid` (`uuid`);
+ALTER TABLE `sessions` ADD PRIMARY KEY (`id`,`uuid`);
 
 ALTER TABLE `users`
     ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `username` (`username`);
-
-ALTER TABLE `session_events`
-    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+    ADD UNIQUE KEY `username` (`username`);
 
 ALTER TABLE `users`
     MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
@@ -170,7 +147,7 @@ COMMIT;
 * `POST /api/login` – User login, returns JWT
 * `POST /api/sysinfo` – Client Meta Data (updates peer status)
 * `POST /api/heartbeat` – Client keepalive (updates peer status)
-* `POST /api/session` – Session event log (triggered by relay\_server.rs patch)
+* `POST /api/audit/conn` – Session tracking and auditing from RustDesk Clients
 * `GET /api/authorized_keys` – Public key for RustDesk
 * `GET /api/version` – API version info
 * *…plus stub endpoints for address books, users, device groups etc.*
