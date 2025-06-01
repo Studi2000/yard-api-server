@@ -40,3 +40,27 @@ This tool will be extended to provide:
 git clone https://github.com/Studi2000/yard-api-server.git
 cd yard-api-server/rdtop
 ./build.sh
+```
+---
+## Configuration
+
+Before using `rdtop`, you **must create the configuration file** at `/etc/rdtop.conf` with your database and localization settings.
+
+### Example `/etc/rdtop.conf`
+
+```conf
+DB_USER=YOUR-DB-USER
+DB_PASS=YOUR-DB-PASSWORD
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=YOUR-DB-NAME
+LOCALE=Europe/Berlin
+```
+---
+
+## 🧑‍💻 Author & Contact
+
+**Andreas Studenski**
+[https://www.webcoding24.com](https://www.webcoding24.com)
+
+---
