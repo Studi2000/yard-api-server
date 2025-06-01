@@ -44,6 +44,9 @@ switch ("{$method} {$uri}") {
     case 'POST /api/ab/personal':
         $controller->addressBookPersonal();
         break;
+    case 'POST /api/audit/conn':
+        $controller->auditConn();
+        break;
     case 'POST /api/currentUser':
         $controller->currentUser();
         break;

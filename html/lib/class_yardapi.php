@@ -139,10 +139,19 @@ class YardApi {
     }
 
     // Accepts any personal address book entry, but does nothing yet
-    public function addressBookPersonal()
-    {
+    public function addressBookPersonal() {
         $data = json_decode(file_get_contents('php://input'), true);
         $this->logger("/api/ab/personal", $data);
+
+        // Here you could store $data into the DB later
+        http_response_code(200);
+        echo json_encode(['message' => 'ok']);
+    }
+
+    public function auditConn() {
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        $this->logger("/api/audit/conn", $data);
 
         // Here you could store $data into the DB later
         http_response_code(200);
