@@ -149,14 +149,80 @@ class YardApi {
     }
 
     public function auditConn() {
-
         $data = json_decode(file_get_contents('php://input'), true);
         $this->logger("/api/audit/conn", $data);
 
-        // Here you could store $data into the DB later
+        $conn_id = $data['conn_id'] ?? null;
+        $uuid    = $data['uuid']    ?? null;
+        $target_id = $data['id']    ?? null;
+
+        // Mandatory check
+        if (!$conn_id || !$uuid || !$target_id) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Missing data: conn_id, uuid, or id']);
+            return;
+        }
+
+        // UTC-Timestamp now()
+        $now_utc = gmdate('Y-m-d H:i:s');
+
+        // Case 1: New Session (Insert)
+        if (isset($data['action']) && $data['action'] === 'new') {
+            $stmt = $this->pdo->prepare(
+                "INSERT IGNORE INTO sessions (id, uuid, target_id, start_time, end_time, viewer_id, viewer_name)
+            VALUES (?, ?, ?, ?, '0000-00-00 00:00:00', '', '')"
+            );
+            $ok = $stmt->execute([
+                $conn_id,
+                $uuid,
+                $target_id,
+                $now_utc
+            ]);
+
+            http_response_code($ok ? 200 : 500);
+            echo json_encode(['message' => $ok ? 'Session created' : 'DB error']);
+            return;
+        }
+
+        // Case 2: Update peer data (viewer_id, viewer_name)
+        if (isset($data['peer']) && is_array($data['peer'])) {
+            $viewer_id = $data['peer'][0] ?? '';
+            $viewer_name = $data['peer'][1] ?? '';
+            $stmt = $this->pdo->prepare(
+                "UPDATE sessions SET viewer_id = ?, viewer_name = ? WHERE id = ? AND uuid = ?"
+            );
+            $ok = $stmt->execute([
+                $viewer_id,
+                $viewer_name,
+                $conn_id,
+                $uuid
+            ]);
+            http_response_code($ok ? 200 : 500);
+            echo json_encode(['message' => $ok ? 'Session updated (viewer)' : 'DB error']);
+            return;
+        }
+
+        // Case 3: Session Close (set end_time)
+        if (isset($data['action']) && $data['action'] === 'close') {
+            $stmt = $this->pdo->prepare(
+                "UPDATE sessions SET end_time = ? WHERE id = ? AND uuid = ?"
+            );
+            $ok = $stmt->execute([
+                $now_utc,
+                $conn_id,
+                $uuid
+            ]);
+            http_response_code($ok ? 200 : 500);
+            echo json_encode(['message' => $ok ? 'Session closed' : 'DB error']);
+            return;
+        }
+
+        // Default: nichts zu tun, alles ok
         http_response_code(200);
-        echo json_encode(['message' => 'ok']);
+        echo json_encode(['message' => 'Nothing done (event ignored)']);
     }
+
+
 
     /** POST /api/logout */
     public function logout(): void {
