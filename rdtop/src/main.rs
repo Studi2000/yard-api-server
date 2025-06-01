@@ -346,8 +346,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stdout = io::stdout();
     execute!(stdout, LeaveAlternateScreen)?;
 
-    println!("Loaded timezone: {}", &timezone);
-    println!("Loaded language: {}", &language);
+    //println!("Loaded timezone: {}", &timezone);
+    //println!("Loaded language: {}", &language);
 
     if let Err(err) = res {
         eprintln!("Error: {err:?}");
