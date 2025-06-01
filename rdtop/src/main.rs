@@ -1,10 +1,9 @@
 use tui::{
     backend::CrosstermBackend,
     Terminal,
-    widgets::{Table, Row, Block, Borders},
+    widgets::{Table, Row, Block, Borders, Cell},
     layout::Constraint,
     style::{Style, Modifier, Color},
-    widgets::Cell
 };
 use crossterm::{
     event::{self, Event, KeyCode},
@@ -16,12 +15,11 @@ use mysql::*;
 use mysql::prelude::*;
 use dotenvy::from_path;
 use std::env;
-use chrono::{NaiveDateTime, Utc, TimeZone};
+use chrono::{NaiveDateTime, Utc, TimeZone, Local};
 use chrono_tz::Tz;
-use std::collections::HashMap;
+use std::time::Instant;
 
-
-// Data struct for a peer
+// Struct for a peer (unchanged)
 #[derive(Debug)]
 struct Peer {
     id: String,
@@ -35,24 +33,15 @@ struct Peer {
     last_seen: String,
 }
 
+// Struct for a session (from new sessions table)
 #[derive(Debug)]
-struct SessionEvent {
-    event_type: String,
-    uuid: String,
-    viewer_ip: String,
-    target_ip: String,
-    target_id: Option<String>,
-    event_time: String,
-}
-
-// Struct for displaying a summarized session (start/end/duration)
-struct SessionSummary {
+struct Session {
+    id: i32,
     uuid: String,
     start_time: String,
     end_time: String,
-    duration: String,
-    viewer_ip: String,
-    target_ip: String,
+    viewer_id: String,
+    viewer_name: String,
     target_id: String,
     start_dt: NaiveDateTime,
 }
@@ -89,71 +78,11 @@ fn format_utc_to_local_with_tz(utc_str: &str, tz_name: &str, lang: &str) -> Stri
         let utc_dt = Utc.from_utc_datetime(&naive_utc);
         let tz: Tz = tz_name.parse().unwrap_or(chrono_tz::UTC);
         let local_time = utc_dt.with_timezone(&tz);
-
         let fmt = datetime_format_for_language(lang);
         local_time.format(fmt).to_string()
     } else {
         utc_str.to_string()
     }
-}
-
-/// Merge session events by UUID and calculate session durations
-fn merge_sessions(events: &[SessionEvent], tz: &str, lang: &str) -> Vec<SessionSummary> {
-    // Map for storing start events (uuid -> &SessionEvent)
-    let mut start_map: HashMap<String, &SessionEvent> = HashMap::new();
-    let mut summaries = Vec::new();
-
-    for event in events {
-        match event.event_type.as_str() {
-            "start" => {
-                // Store the start event in the map
-                start_map.insert(event.uuid.clone(), event);
-            }
-            "end" => {
-                // Try to find the matching start event by uuid
-                if let Some(start_event) = start_map.remove(&event.uuid) {
-                    // Parse datetime strings into NaiveDateTime
-                    let start_dt = NaiveDateTime::parse_from_str(&start_event.event_time, "%Y-%m-%d %H:%M:%S").unwrap();
-                    let end_dt = NaiveDateTime::parse_from_str(&event.event_time, "%Y-%m-%d %H:%M:%S").unwrap();
-                    // Calculate duration between start and end
-                    let duration = end_dt - start_dt;
-                    let duration_str = format!(
-                        "{:02}:{:02}:{:02}",
-                        duration.num_hours(),
-                        duration.num_minutes() % 60,
-                        duration.num_seconds() % 60
-                    );
-                    // Add the summarized session to the result vector
-                    summaries.push(SessionSummary {
-                        uuid: event.uuid.clone(),
-                        start_time: format_utc_to_local_with_tz(&start_event.event_time, tz, lang),
-                        end_time: format_utc_to_local_with_tz(&event.event_time, tz, lang),
-                        duration: duration_str,
-                        viewer_ip: prettify_ip(&Some(event.viewer_ip.clone())),
-                        target_ip: prettify_ip(&Some(event.target_ip.clone())),
-                        target_id: event.target_id.clone().unwrap_or("-".to_string()),
-                        start_dt,
-                    });
-                }
-            }
-            _ => {}
-        }
-    }
-    summaries
-}
-
-// Load DB credentials from config
-fn load_db_url() -> String {
-    from_path("/etc/rdtop.conf").expect("/etc/rdtop.conf missing or not readable");
-
-    let user = env::var("DB_USER").expect("DB_USER missing!");
-    let pass_plain = env::var("DB_PASS").expect("DB_PASS missing!");
-    let pass = urlencoding::encode(&pass_plain);
-    let host = env::var("DB_HOST").unwrap_or("127.0.0.1".to_string());
-    let port = env::var("DB_PORT").unwrap_or("3306".to_string());
-    let name = env::var("DB_NAME").expect("DB_NAME missing!");
-
-    format!("mysql://{user}:{pass}@{host}:{port}/{name}")
 }
 
 // Helper to pretty-print IPv4-mapped IPv6 addresses and IP:Port combos
@@ -182,7 +111,21 @@ fn prettify_ip(opt: &Option<String>) -> String {
     }
 }
 
-// Select peers from database
+// Load DB credentials from config
+fn load_db_url() -> String {
+    from_path("/etc/rdtop.conf").expect("/etc/rdtop.conf missing or not readable");
+
+    let user = env::var("DB_USER").expect("DB_USER missing!");
+    let pass_plain = env::var("DB_PASS").expect("DB_PASS missing!");
+    let pass = urlencoding::encode(&pass_plain);
+    let host = env::var("DB_HOST").unwrap_or("127.0.0.1".to_string());
+    let port = env::var("DB_PORT").unwrap_or("3306".to_string());
+    let name = env::var("DB_NAME").expect("DB_NAME missing!");
+
+    format!("mysql://{user}:{pass}@{host}:{port}/{name}")
+}
+
+// Query all peers from database
 fn select_peers() -> Vec<Peer> {
     let url = load_db_url();
     let pool = Pool::new(url.as_str()).expect("DB-Pool Error");
@@ -204,30 +147,61 @@ fn select_peers() -> Vec<Peer> {
     ).expect("MySQL query error!")
 }
 
-/// Query the last N session events from the database, newest first
-fn select_last_sessions(limit: u32) -> Vec<SessionEvent> {
+// Query latest sessions from the new sessions table
+fn select_sessions(limit: u32) -> Vec<Session> {
     let url = load_db_url();
     let pool = Pool::new(url.as_str()).expect("DB-Pool error");
     let mut conn = pool.get_conn().expect("DB-Connect error");
 
-    // Prepare and execute the SQL query, ordered by event_time descending
-    let query = format!("SELECT event_type, uuid, viewer_ip, target_ip, target_id, event_time FROM session_events ORDER BY event_time ASC LIMIT {}", limit);
+    let query = format!(
+        "SELECT id, uuid, start_time, end_time, viewer_id, viewer_name, target_id \
+        FROM sessions \
+        ORDER BY start_time DESC \
+        LIMIT {}",
+        limit
+    );
 
-    // Map the result set into a vector of SessionEvent structs
     conn.query_map(
         query,
-        |(event_type, uuid, viewer_ip, target_ip, target_id, event_time): (String, String, String, String, Option<String>, String)| {
-            SessionEvent {
-                event_type,
+        |(id, uuid, start_time, end_time, viewer_id, viewer_name, target_id): (i32, String, String, String, String, String, String)| {
+            let start_dt = NaiveDateTime::parse_from_str(&start_time, "%Y-%m-%d %H:%M:%S").unwrap_or_else(|_| NaiveDateTime::from_timestamp(0, 0));
+            Session {
+                id,
                 uuid,
-                viewer_ip,
-                target_ip,
+                start_time,
+                end_time,
+                viewer_id,
+                viewer_name,
                 target_id,
-                event_time,
+                start_dt,
             }
         }
-    ).expect("MySQL session_events query error!")
+    ).expect("MySQL sessions query error!")
 }
+
+// Calculate duration as HH:MM:SS from start_time and end_time
+fn calc_duration(start: &str, end: &str) -> String {
+    let s = NaiveDateTime::parse_from_str(start, "%Y-%m-%d %H:%M:%S");
+    let e = NaiveDateTime::parse_from_str(end, "%Y-%m-%d %H:%M:%S");
+    if let (Ok(s), Ok(e)) = (s, e) {
+        let d = e - s;
+        format!("{:02}:{:02}:{:02}", d.num_hours(), d.num_minutes() % 60, d.num_seconds() % 60)
+    } else {
+        "-".to_string()
+    }
+}
+
+// Calculate dynamic duration for running session (live, UTC)
+fn calc_dynamic_duration(start: &str) -> String {
+    if let Ok(start_dt) = NaiveDateTime::parse_from_str(start, "%Y-%m-%d %H:%M:%S") {
+        let now = Utc::now().naive_utc(); // <-- UTC, passend zur Datenbank
+        let d = now - start_dt;
+        format!("{:02}:{:02}:{:02}", d.num_hours(), d.num_minutes() % 60, d.num_seconds() % 60)
+    } else {
+        "-".to_string()
+    }
+}
+
 
 // Main TUI application loop
 fn run_app<B: tui::backend::Backend>(
@@ -235,29 +209,53 @@ fn run_app<B: tui::backend::Backend>(
     timezone: &str,
     language: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let mut peers = select_peers();
+    let mut sessions = select_sessions(20);
+    let mut last_db_refresh = Instant::now();
+
     loop {
-        // Query current peers and session events from the database
-        let peers = select_peers();
-        let last_sessions = select_last_sessions(100);
+        // Refresh data from DB every 5 seconds
+        if last_db_refresh.elapsed() >= Duration::from_secs(5) {
+            peers = select_peers();
+            sessions = select_sessions(20);
+            last_db_refresh = Instant::now();
+        }
 
-        // Merge session events by UUID into summarized sessions with duration
-        let mut merged_sessions = merge_sessions(&last_sessions, timezone, language);
+        let session_rows: Vec<Row> = sessions.iter().map(|s| {
+            let no_end = s.end_time.is_empty() || s.end_time == "0000-00-00 00:00:00";
+            let display_end = if no_end {
+                "-".to_string()
+            } else {
+                format_utc_to_local_with_tz(&s.end_time, timezone, language)
+            };
 
-        // Sort merged sessions descending by end_time (newest first)
-        merged_sessions.sort_by(|a, b| b.start_dt.cmp(&a.start_dt));
+            let (duration_str, duration_style, status_str, status_style) = if no_end {
+                (
+                    calc_dynamic_duration(&s.start_time),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),  // Duration: red, bold, no blink
+                    "RUNNING",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD | Modifier::RAPID_BLINK),
+                )
+            } else {
+                (
+                    calc_duration(&s.start_time, &s.end_time),
+                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD), // Duration: green, bold
+                    "FINISHED",
+                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+                )
+            };
 
-        // Only take the first 10 newest sessions for display
-        let session_rows: Vec<Row> = merged_sessions.iter().take(10).map(|summary| {
             Row::new(vec![
-                Cell::from(summary.start_time.clone()),
-                Cell::from(summary.end_time.clone()),
-                Cell::from(summary.duration.clone()).style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-                Cell::from(summary.viewer_ip.clone()),
-                Cell::from(summary.target_ip.clone()),
-                Cell::from(summary.target_id.clone()).style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-                Cell::from(summary.uuid.clone()),
+                Cell::from(format_utc_to_local_with_tz(&s.start_time, timezone, language)),
+                Cell::from(display_end),
+                Cell::from(s.viewer_id.clone()),
+                Cell::from(s.viewer_name.clone()),
+                Cell::from(s.target_id.clone()),
+                Cell::from(duration_str).style(duration_style),
+                Cell::from(status_str).style(status_style),
             ])
         }).collect();
+
 
         terminal.draw(|f| {
             let size = f.size();
@@ -291,7 +289,7 @@ fn run_app<B: tui::backend::Backend>(
             let table = Table::new(peer_rows)
                 .header(Row::new(vec![
                     "Last Seen", "ID", "IP-ADDR", "Host", "User", "OS", "Ver", "CPU", "RAM"
-                ]).style(tui::style::Style::default().add_modifier(tui::style::Modifier::REVERSED)))
+                ]).style(Style::default().add_modifier(Modifier::REVERSED)))
                 .block(Block::default().title("Active peers (last 10 minutes)").borders(Borders::ALL))
                 .widths(&[
                     Constraint::Length(20),
@@ -305,20 +303,20 @@ fn run_app<B: tui::backend::Backend>(
                     Constraint::Length(8),
                 ]);
 
-            // Create the session durations table widget
+            // Create the sessions table widget
             let session_table = Table::new(session_rows)
                 .header(Row::new(vec![
-                    "Start", "End", "Duration", "Viewer IP", "Target IP", "Target ID", "UUID"
-                ]).style(tui::style::Style::default().add_modifier(tui::style::Modifier::REVERSED)))
-                .block(Block::default().title("Session Durations").borders(Borders::ALL))
+                    "Start", "End", "Viewer ID", "Viewer Name", "Target ID", "Duration", "Status"
+                ]).style(Style::default().add_modifier(Modifier::REVERSED)))
+                .block(Block::default().title("Last 20 Sessions").borders(Borders::ALL))
                 .widths(&[
                     Constraint::Length(20),
                     Constraint::Length(20),
+                    Constraint::Length(12),
+                    Constraint::Length(16),
                     Constraint::Length(10),
-                    Constraint::Length(21),
-                    Constraint::Length(21),
                     Constraint::Length(10),
-                    Constraint::Length(32),
+                    Constraint::Length(10),
                 ]);
 
             // Render the widgets
@@ -326,9 +324,8 @@ fn run_app<B: tui::backend::Backend>(
             f.render_widget(session_table, chunks[1]);
         })?;
 
-        // End condition: quit on 'q', otherwise refresh every 5 seconds
-        const REFRESH_INTERVAL_SECS: u64 = 5;
-        if event::poll(Duration::from_secs(REFRESH_INTERVAL_SECS))? {
+        // End condition: quit on 'q', otherwise refresh/redraw every second
+        if event::poll(Duration::from_secs(1))? {
             if let Event::Key(key) = event::read()? {
                 if key.code == KeyCode::Char('q') {
                     break;
@@ -338,6 +335,7 @@ fn run_app<B: tui::backend::Backend>(
     }
     Ok(())
 }
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     from_path("/etc/rdtop.conf").ok();
 
