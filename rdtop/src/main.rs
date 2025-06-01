@@ -113,7 +113,7 @@ fn select_peers() -> Vec<Peer> {
     let mut conn = pool.get_conn().expect("DB-Connect Error");
 
     conn.query_map(
-        r"SELECT id, ip_addr, hostname, username, os, version, cpu, memory, last_seen FROM peers WHERE last_seen >= UTC_TIMESTAMP() - INTERVAL 3000 MINUTE ORDER BY last_seen ASC",
+        r"SELECT id, ip_addr, hostname, username, os, version, cpu, memory, last_seen FROM peers WHERE last_seen >= UTC_TIMESTAMP() - INTERVAL 10 MINUTE ORDER BY last_seen ASC",
         |(id, ip_addr, hostname, username, os, version, cpu, memory, last_seen): (String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, String)| Peer {
             id,
             ip_addr,
@@ -186,7 +186,7 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(), B
                 .header(Row::new(vec![
                     "Last Seen", "ID", "IP-ADDR", "Host", "User", "OS", "Ver", "CPU", "RAM"
                 ]).style(tui::style::Style::default().add_modifier(tui::style::Modifier::REVERSED)))
-                .block(Block::default().title("Peers").borders(Borders::ALL))
+                .block(Block::default().title("Active peers (last 10 minutes)").borders(Borders::ALL))
                 .widths(&[
                     Constraint::Length(20),
                     Constraint::Length(10),
@@ -197,7 +197,6 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(), B
                     Constraint::Length(8),
                     Constraint::Length(70),
                     Constraint::Length(8),
-
                 ]);
 
             // Sessions table (Event Time nach vorne!)
