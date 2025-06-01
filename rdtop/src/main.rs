@@ -21,7 +21,6 @@ use chrono_tz::Tz;
 #[derive(Debug)]
 struct Peer {
     id: String,
-    //uuid: String,
     ip_addr: Option<String>,
     hostname: Option<String>,
     username: Option<String>,
@@ -41,30 +40,48 @@ struct SessionEvent {
     event_time: String,
 }
 
-/// Converts UTC datetime string to a given local time zone
-fn format_utc_to_local_with_tz(utc_str: &str, tz_name: &str) -> String {
-    // Parse the input string "YYYY-MM-DD HH:MM:SS"
+// Get timezone from system, fallback UTC
+fn get_system_timezone() -> String {
+    env::var("TZ").unwrap_or_else(|_| "UTC".to_string())
+}
+
+// Get language/locale from system, fallback "en"
+fn get_system_language() -> String {
+    env::var("LC_TIME")
+        .or_else(|_| env::var("LANG"))
+        .map(|s| s.split('.').next().unwrap_or("en").to_string())
+        .unwrap_or_else(|_| "en".to_string())
+}
+
+// Date format selection by language
+fn datetime_format_for_language(lang: &str) -> &str {
+    if lang.starts_with("de") {
+        "%d.%m.%Y %H:%M:%S"
+    } else if lang.starts_with("en_GB") {
+        "%d/%m/%Y %H:%M:%S"
+    } else if lang.starts_with("en") {
+        "%m/%d/%Y %I:%M:%S %p"
+    } else {
+        "%Y-%m-%d %H:%M:%S"
+    }
+}
+
+// Convert UTC datetime string to local with flexible format
+fn format_utc_to_local_with_tz(utc_str: &str, tz_name: &str, lang: &str) -> String {
     if let Ok(naive_utc) = NaiveDateTime::parse_from_str(utc_str, "%Y-%m-%d %H:%M:%S") {
-        // Interpret as UTC
         let utc_dt = Utc.from_utc_datetime(&naive_utc);
-
-        // Try to parse the timezone string, default to UTC on error
         let tz: Tz = tz_name.parse().unwrap_or(chrono_tz::UTC);
-
-        // Convert to the target local time zone
         let local_time = utc_dt.with_timezone(&tz);
 
-        // Format e.g. "31.05.2025 21:27:01"
-        local_time.format("%d.%m.%Y %H:%M:%S").to_string()
+        let fmt = datetime_format_for_language(lang);
+        local_time.format(fmt).to_string()
     } else {
-        // Fallback: return as is
         utc_str.to_string()
     }
 }
 
 // Load DB credentials from config
 fn load_db_url() -> String {
-    // Load config, panic on error
     from_path("/etc/rdtop.conf").expect("/etc/rdtop.conf missing or not readable");
 
     let user = env::var("DB_USER").expect("DB_USER missing!");
@@ -79,21 +96,18 @@ fn load_db_url() -> String {
 
 // Helper to pretty-print IPv4-mapped IPv6 addresses and IP:Port combos
 fn prettify_ip_str(ip: &str) -> String {
-    // Case: [::ffff:192.168.120.90]:54268
     if let Some(rest) = ip.strip_prefix("[::ffff:") {
         if let Some(end_bracket) = rest.find(']') {
             let ip_part = &rest[..end_bracket];
             return ip_part.to_string();
         }
     } else if let Some(rest) = ip.strip_prefix("::ffff:") {
-        // Case: ::ffff:192.168.120.90:PORT
         if let Some(colon) = rest.find(':') {
             return rest[..colon].to_string();
         } else {
             return rest.to_string();
         }
     }
-    // Default: remove [ ] and port if present
     let stripped = ip.trim_start_matches('[').trim_end_matches(']');
     stripped.split(':').next().unwrap_or(stripped).to_string()
 }
@@ -145,10 +159,12 @@ fn select_last_sessions() -> Vec<SessionEvent> {
     ).expect("MySQL session_events query error!")
 }
 
-// Main TUI app loop
-fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(), Box<dyn std::error::Error>> {
-    // Read locale from env (from /etc/rdtop.conf)
-    let locale = std::env::var("LOCALE").unwrap_or("UTC".to_string());
+// Main TUI app loop, jetzt mit timezone & language
+fn run_app<B: tui::backend::Backend>(
+    terminal: &mut Terminal<B>,
+    timezone: &str,
+    language: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     loop {
         let peers = select_peers();
         let last_sessions = select_last_sessions();
@@ -169,7 +185,7 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(), B
             // Peers table
             let peer_rows: Vec<Row> = peers.iter().map(|peer| {
                 Row::new(vec![
-                    format_utc_to_local_with_tz(&peer.last_seen, &locale),
+                    format_utc_to_local_with_tz(&peer.last_seen, timezone, language),
                     peer.id.clone(),
                     prettify_ip(&peer.ip_addr),
                     peer.hostname.clone().unwrap_or("-".into()),
@@ -178,7 +194,6 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(), B
                     peer.version.clone().unwrap_or("-".into()),
                     peer.cpu.clone().unwrap_or("-".into()),
                     peer.memory.clone().unwrap_or("-".into()),
-
                 ])
             }).collect();
 
@@ -199,10 +214,10 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(), B
                     Constraint::Length(8),
                 ]);
 
-            // Sessions table (Event Time nach vorne!)
+            // Sessions table
             let session_rows: Vec<Row> = last_sessions.iter().map(|event| {
                 Row::new(vec![
-                    format_utc_to_local_with_tz(&event.event_time, &locale),
+                    format_utc_to_local_with_tz(&event.event_time, timezone, language),
                     event.event_type.clone(),
                     prettify_ip(&Some(event.viewer_ip.clone())),
                     prettify_ip(&Some(event.target_ip.clone())),
@@ -240,9 +255,12 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>) -> Result<(), B
     Ok(())
 }
 
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Setup terminal in raw mode & alternate screen
+    from_path("/etc/rdtop.conf").ok();
+
+    let timezone = get_system_timezone();
+    let language = get_system_language();
+
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
@@ -250,12 +268,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let res = run_app(&mut terminal);
+    let res = run_app(&mut terminal, &timezone, &language);
 
-    // Always restore terminal
     disable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, LeaveAlternateScreen)?;
+
+    println!("Loaded timezone: {}", &timezone);
+    println!("Loaded language: {}", &language);
 
     if let Err(err) = res {
         eprintln!("Error: {err:?}");
