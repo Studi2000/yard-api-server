@@ -154,16 +154,16 @@ fn select_sessions(limit: u32) -> Vec<Session> {
     let mut conn = pool.get_conn().expect("DB-Connect error");
 
     let query = format!(
-        "SELECT id, uuid, start_time, end_time, viewer_id, viewer_name, target_id FROM sessions ORDER BY start_time DESC LIMIT {}", limit);
+        "SELECT id, uuid, start_time, end_time, viewer_name, viewer_id, target_id FROM sessions ORDER BY start_time DESC LIMIT {}", limit);
 
     conn.query_map(
         query,
-        |(_id, _uuid, start_time, end_time, viewer_id, viewer_name, target_id): (i32, String, String, String, String, String, String)| {
+        |(_id, _uuid, start_time, end_time, viewer_name, viewer_id, target_id): (i32, String, String, String, String, String, String)| {
             Session {
                 start_time,
                 end_time,
-                viewer_id,
                 viewer_name,
+                viewer_id,
                 target_id,
             }
         }
@@ -239,8 +239,8 @@ fn run_app<B: tui::backend::Backend>(
             Row::new(vec![
                 Cell::from(format_utc_to_local_with_tz(&s.start_time, timezone, language)),
                 Cell::from(display_end),
-                Cell::from(s.viewer_id.clone()),
                 Cell::from(s.viewer_name.clone()),
+                Cell::from(s.viewer_id.clone()),
                 Cell::from(s.target_id.clone()),
                 Cell::from(duration_str).style(duration_style),
                 Cell::from(status_str).style(status_style),
@@ -297,14 +297,14 @@ fn run_app<B: tui::backend::Backend>(
             // Create the sessions table widget
             let session_table = Table::new(session_rows)
                 .header(Row::new(vec![
-                    "Start", "End", "Viewer ID", "Viewer Name", "Target ID", "Duration", "Status"
+                    "Start", "End", "Viewer Name", "Viewer ID", "Target ID", "Duration", "Status"
                 ]).style(Style::default().add_modifier(Modifier::REVERSED)))
                 .block(Block::default().title("Last 20 Sessions").borders(Borders::ALL))
                 .widths(&[
                     Constraint::Length(20),
                     Constraint::Length(20),
-                    Constraint::Length(12),
                     Constraint::Length(16),
+                    Constraint::Length(12),
                     Constraint::Length(10),
                     Constraint::Length(10),
                     Constraint::Length(10),
