@@ -15,7 +15,7 @@ use mysql::*;
 use mysql::prelude::*;
 use dotenvy::from_path;
 use std::env;
-use chrono::{NaiveDateTime, Utc, TimeZone, Local};
+use chrono::{NaiveDateTime, Utc, TimeZone};
 use chrono_tz::Tz;
 use std::time::Instant;
 
@@ -36,14 +36,14 @@ struct Peer {
 // Struct for a session (from new sessions table)
 #[derive(Debug)]
 struct Session {
-    id: i32,
-    uuid: String,
+    //id: i32,
+    //uuid: String,
     start_time: String,
     end_time: String,
     viewer_id: String,
     viewer_name: String,
     target_id: String,
-    start_dt: NaiveDateTime,
+    //start_dt: NaiveDateTime,
 }
 
 // Get timezone from system, fallback UTC
@@ -154,26 +154,17 @@ fn select_sessions(limit: u32) -> Vec<Session> {
     let mut conn = pool.get_conn().expect("DB-Connect error");
 
     let query = format!(
-        "SELECT id, uuid, start_time, end_time, viewer_id, viewer_name, target_id \
-        FROM sessions \
-        ORDER BY start_time DESC \
-        LIMIT {}",
-        limit
-    );
+        "SELECT id, uuid, start_time, end_time, viewer_id, viewer_name, target_id FROM sessions ORDER BY start_time DESC LIMIT {}", limit);
 
     conn.query_map(
         query,
-        |(id, uuid, start_time, end_time, viewer_id, viewer_name, target_id): (i32, String, String, String, String, String, String)| {
-            let start_dt = NaiveDateTime::parse_from_str(&start_time, "%Y-%m-%d %H:%M:%S").unwrap_or_else(|_| NaiveDateTime::from_timestamp(0, 0));
+        |(_id, _uuid, start_time, end_time, viewer_id, viewer_name, target_id): (i32, String, String, String, String, String, String)| {
             Session {
-                id,
-                uuid,
                 start_time,
                 end_time,
                 viewer_id,
                 viewer_name,
                 target_id,
-                start_dt,
             }
         }
     ).expect("MySQL sessions query error!")
