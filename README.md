@@ -110,13 +110,14 @@ CREATE TABLE `peers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE `sessions` (
-    `id` int(11) NOT NULL,
-    `uuid` varchar(64) NOT NULL,
-    `start_time` datetime NOT NULL,
-    `end_time` datetime NOT NULL,
-    `viewer_name` varchar(32) NOT NULL,
-    `viewer_id` varchar(32) NOT NULL,
-    `target_id` varchar(32) NOT NULL
+     `id` int(11) NOT NULL,
+     `uuid` varchar(64) NOT NULL,
+     `start_time` datetime NOT NULL,
+     `end_time` datetime NOT NULL,
+     `viewer_name` varchar(32) NOT NULL,
+     `viewer_id` varchar(32) NOT NULL,
+     `target_id` varchar(32) NOT NULL,
+     `last_seen` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `users` (
