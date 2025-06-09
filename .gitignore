@@ -33,6 +33,10 @@ coverage/
 *.code-workspace
 
 # Ignore compiled or uploaded files (if any)
+target/
 uploads/
 storage/
 rdtop/target
+
+# Ignore old project files
+html/
