@@ -15,7 +15,7 @@ tmp/
 Thumbs.db
 
 # Composer dependencies
-/html/vendor/
+html/vendor/
 
 # Ignore environment/config examples (optional)
 .env
@@ -39,4 +39,5 @@ storage/
 rdtop/target
 
 # Ignore old project files
-html/
+html/lib/
+html/config/
