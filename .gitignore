@@ -1,5 +1,5 @@
 # Ignore sensitive config files
-html/config/config.php
+old/html/config/config.php
 
 # Ignore log, cache and temp directories
 logs/
@@ -15,12 +15,12 @@ tmp/
 Thumbs.db
 
 # Composer dependencies
-html/vendor/
+old/vendor/
 
 # Ignore environment/config examples (optional)
 .env
 .env.*
-html/payload.log
+old/html/payload.log
 
 # PHPUnit test output (if applicable)
 phpunit.xml
@@ -39,5 +39,6 @@ storage/
 rdtop/target
 
 # Ignore old project files
-html/lib/
-html/config/
+old/
+old/html/lib/
+old/html/config/
