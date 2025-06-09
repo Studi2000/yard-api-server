@@ -2,17 +2,15 @@
 
 **YARD** = *Yet Another RustDesk API Server*
 
-A **modern, open-source PHP 8.3 REST API** for authentication, billing, and session logging for [RustDesk](https://rustdesk.com) remote desktop environments.
-**Ready for basic use** in combination with RustDesk and your own relay server patch (hbbr).
+A **modern, open-source REST API server written in Rust** for authentication, session logging, and future billing integration with [RustDesk](https://rustdesk.com) remote desktop environments.
+**Ready for production use** for authentication and session logging in combination with your own RustDesk relay infrastructure.
 
-**Work is still in progress!**
+**Work is ongoing!**
 
-> **Status:** 🚀 **Production-ready** for authentication, session tracking.
-> Active development for advanced features!
-> 
-> **To-Do:** Backend development with user registration, role management, client management, session monitoring.
-> 
-> *COMING SOON™*
+> **Status:** 🚀 **Production-ready** for authentication & session logging.
+> More advanced features are actively developed!
+>
+> **Coming soon:** User management, billing, reporting, device grouping, extended auditing.
 
 ---
 
@@ -20,80 +18,102 @@ A **modern, open-source PHP 8.3 REST API** for authentication, billing, and sess
 
 * **User Authentication**
 
-    * Secure login with Argon2i password hash
+    * Secure login with Argon2i password hashing
     * Token-based session management via **JWT**
-* **Session Event Logging**
+* **Session & Event Logging**
 
     * Logs all remote support sessions (start, end, duration)
-    * Stores *viewer IP*, *target IP*, *host (target) ID* (UUID), and timestamps
+    * Stores *viewer IP*, *target IP*, *host UUID*, and timestamps
     * Ready for reporting & billing workflows
-* **Integration with RustDesk**
+* **RustDesk Integration**
 
-    * Uses a custom REST interface for login and session data
-    * Based on the great work of [rustdesk/rustdesk-server](https://github.com/rustdesk/rustdesk-server) 
-    * No code changes needed in RustDesk Server, YARD-API-Server runs without patching original sources!
-    * You also do NOT need to patch any RustDesk clients!
-* **Device & Peer Management**
+    * Custom REST API for login and session events
+    * No RustDesk source code patches required!
+    * No client-side changes needed
+* **Peer/Device Management**
 
-    * Tracks all online/offline peers (clients) with full metadata
-    * Maps sessions to RustDesk clients for transparent user billing
-    * Delivered a small top like console tool **rdtop** (Rust) showing active peers (see /rdtool folder)
-* **Team & User Management**
-
-    * User endpoints ready for future expansion (groups, address books, permissions)
-* **API Security**
-
-    * Strict JWT validation for all sensitive endpoints
+    * Tracks all online/offline peers with complete metadata
+    * Sessions are clearly mapped to RustDesk clients for audit and billing
 * **Extensible Design**
 
     * Easily adapt or extend for your organization’s needs
+* **API Security**
+
+    * Strict JWT validation for all sensitive endpoints
+    * Argon2 password hashes
 
 ---
 
-## 🚀 Setup (Apache + PHP 8.3 + MariaDB/MySQL)
+## 🚀 Setup (Rust + MariaDB/MySQL)
 
-1. **Install Apache, PHP 8.3, Composer:**
-
-   ```bash
-   dnf install php83 php83-pdo php83-mysqlnd php83-mbstring php83-opcache composer
-   ```
-2. **Clone this project** into your Apache web root, e.g. `/var/www/yard-api-server`
-3. **Set up your VirtualHost** to point to the `html/` directory:
-
-   ```apache
-   DocumentRoot /var/www/yard-api-server/html
-   ```
-4. **File permissions** (if running as `apache:apache`):
+1. **Install Rust (toolchain >=1.75 recommended):**
 
    ```bash
-   chown -R apache:apache /var/www/yard-api-server
-   chmod -R 755 /var/www/yard-api-server
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
-5. **Create MySQL/MariaDB Database:**
+
+2. **Clone this repository:**
+
+   ```bash
+   git clone https://github.com/yourusername/yard-api-server.git
+   cd yard-api-server
+   ```
+
+3. **Configure:**
+
+    * Copy `../etc/yardapi.conf` in the project folder to `/etc/yardapi.conf` and fill in your database credentials, API port, JWT secret, etc.
+
+4. **Create the database (MySQL/MariaDB):**
 
    ```sql
-   CREATE DATABASE `yard-api-server` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   CREATE USER 'yard-api-server'@'127.0.0.1' IDENTIFIED BY 'YOUR-PASSWORD';
-   GRANT ALL PRIVILEGES ON `yard-api-server`.* TO 'yard-api-server'@'127.0.0.1';
+   CREATE DATABASE `yard_api_server` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE USER 'yarduser'@'127.0.0.1' IDENTIFIED BY 'YOUR-PASSWORD';
+   GRANT ALL PRIVILEGES ON `yard_api_server`.* TO 'yarduser'@'127.0.0.1';
    FLUSH PRIVILEGES;
    ```
-6. **Configure:**
 
-    * Rename `config/config.example.php` → `config/config.php`
-    * Enter your database credentials and JWT secret.
-7. **Install PHP dependencies:**
+5. **Build the server:**
 
    ```bash
-   composer install
+   cargo build --release
    ```
-8. **Ready!**
-   Access your API at `http://yourdomain-or-ip/`
+
+   The binary will be in `target/release/yard-api-server`.
+
+6. **Run as service or foreground:**
+
+   ```bash
+   sudo ./target/release/yard-api-server
+   ```
+
+7. **Access your API at:**
+   `http://yourdomain-or-ip:PORT/api/`
+
+---
+
+## 🌐 Using an SSL/TLS Proxy (Reverse Proxy)
+
+If you are running YARD API Server behind a reverse proxy (such as **nginx**, **Apache**, or a cloud load balancer) that handles HTTPS termination, you should:
+
+* **Forward the real client IP**: Ensure your proxy passes the original client IP to the backend using the `X-Forwarded-For` header (nginx does this by default). Example for nginx:
+
+  ```nginx
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header Host $host;
+  ```
+* **Configure your API server to use this header**: YARD API Server reads `X-Forwarded-For` to log and store the correct client address (not just 127.0.0.1).
+
+**Security note:** Only trust `X-Forwarded-For` if your API server is *only* accessible by your proxy!
+
+---
+
+`http://yourdomain-or-ip:PORT/api/`
 
 ---
 
 ## 🗂️ Database Structure
 
-Below are the main tables used by YARD API Server for tracking users, peers, and session events.
+Example tables used by YARD API Server:
 
 ```sql
 CREATE TABLE `peers` (
@@ -127,7 +147,7 @@ CREATE TABLE `users` (
      `display_name` varchar(200) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `peers` ADD PRIMARY KEY (`id`), 
+ALTER TABLE `peers` ADD PRIMARY KEY (`id`),
     ADD UNIQUE KEY `uniq_uuid` (`uuid`);
 
 ALTER TABLE `sessions` ADD PRIMARY KEY (`id`,`uuid`);
@@ -146,18 +166,18 @@ COMMIT;
 ## 🔌 API Overview
 
 * `POST /api/login` – User login, returns JWT
-* `POST /api/sysinfo` – Client Meta Data (updates peer status)
+* `POST /api/sysinfo` – Client meta data (updates peer status)
 * `POST /api/heartbeat` – Client keepalive (updates peer status)
-* `POST /api/audit/conn` – Session tracking and auditing from RustDesk Clients
+* `POST /api/audit/conn` – Session tracking and auditing
 * `GET /api/authorized_keys` – Public key for RustDesk
 * `GET /api/version` – API version info
-* *…plus stub endpoints for address books, users, device groups etc.*
+* ...plus stubs for users, address books, device groups, etc.
 
 ---
 
 ## 🔒 Security
 
-* **All authentication** uses strong password hashing (Argon2i)
+* **All authentication** uses strong password hashing (Argon2)
 * **JWT** is required for all sensitive actions
 * **Session logs** cannot be manipulated by clients
 
@@ -177,5 +197,3 @@ You must disclose source code for any modifications you deploy or distribute.
 
 **Andreas Studenski**
 [https://www.webcoding24.com](https://www.webcoding24.com)
-
----
