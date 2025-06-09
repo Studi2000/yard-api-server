@@ -124,6 +124,13 @@ class YardApi {
 
         $this->updatePeer($data);
 
+        if (!empty($data['conns']) && is_array($data['conns'])) {
+            $this->updateSessions($data['uuid'], $data['conns']);
+        }
+
+        // Cleanup expired Sessions
+        $this->cleanupExpiredSessions();
+
         http_response_code(200);
         echo json_encode(['message' => 'HEARTBEAT_RECEIVED']);
     }
@@ -169,13 +176,14 @@ class YardApi {
         // Case 1: New Session (Insert)
         if (isset($data['action']) && $data['action'] === 'new') {
             $stmt = $this->pdo->prepare(
-                "INSERT IGNORE INTO sessions (id, uuid, target_id, start_time, end_time, viewer_id, viewer_name)
-            VALUES (?, ?, ?, ?, '0000-00-00 00:00:00', '', '')"
+                "INSERT IGNORE INTO sessions (id, uuid, target_id, start_time, last_seen, end_time, viewer_id, viewer_name)
+            VALUES (?, ?, ?, ?, ?, '0000-00-00 00:00:00', '', '')"
             );
             $ok = $stmt->execute([
                 $conn_id,
                 $uuid,
                 $target_id,
+                $now_utc,
                 $now_utc
             ]);
 
@@ -189,11 +197,12 @@ class YardApi {
             $viewer_id = $data['peer'][0] ?? '';
             $viewer_name = $data['peer'][1] ?? '';
             $stmt = $this->pdo->prepare(
-                "UPDATE sessions SET viewer_id = ?, viewer_name = ? WHERE id = ? AND uuid = ?"
+                "UPDATE sessions SET viewer_id = ?, viewer_name = ?, last_seen = ? WHERE id = ? AND uuid = ?"
             );
             $ok = $stmt->execute([
                 $viewer_id,
                 $viewer_name,
+                $now_utc,
                 $conn_id,
                 $uuid
             ]);
@@ -205,9 +214,10 @@ class YardApi {
         // Case 3: Session Close (set end_time)
         if (isset($data['action']) && $data['action'] === 'close') {
             $stmt = $this->pdo->prepare(
-                "UPDATE sessions SET end_time = ? WHERE id = ? AND uuid = ?"
+                "UPDATE sessions SET end_time = ?, last_seen = ? WHERE id = ? AND uuid = ?"
             );
             $ok = $stmt->execute([
+                $now_utc,
                 $now_utc,
                 $conn_id,
                 $uuid
@@ -352,6 +362,34 @@ class YardApi {
         }
     }
 
+    // Update session last_seen timestamps for active connections
+    private function updateSessions($uuid, $connIds): void {
+        if (!is_array($connIds) || empty($connIds)) return;
+
+        $lastSeen = gmdate('Y-m-d H:i:s');
+
+        $stmt = $this->pdo->prepare("UPDATE sessions SET last_seen = ? WHERE id = ? AND uuid = ?");
+
+        foreach ($connIds as $conn_id) {
+            $stmt->execute([$lastSeen, $conn_id, $uuid]);
+        }
+    }
+
+    // Close expired sessions where last_seen is older than 5 minutes
+    private function cleanupExpiredSessions(): void {
+        $cutoff = gmdate('Y-m-d H:i:s', time() - 300);
+
+        $stmt = $this->pdo->prepare("
+        UPDATE sessions
+        SET end_time = last_seen
+        WHERE end_time IS NULL
+          AND last_seen IS NOT NULL
+          AND last_seen < ?
+        ");
+
+        $stmt->execute([$cutoff]);
+    }
+
     private function updatePeer(array $data): void {
         $id    = $data['id']    ?? null;
         $uuid  = $data['uuid']  ?? null;
@@ -381,7 +419,7 @@ class YardApi {
         $memory   = !empty($data['memory'])   ? $data['memory']   : ($current['memory'] ?? null);
 
         // UTC timestamp
-        $lastSeen = $lastSeen = gmdate('Y-m-d H:i:s');
+        $lastSeen = gmdate('Y-m-d H:i:s');
 
         $stmt = $this->pdo->prepare("REPLACE INTO peers (id, uuid, ip_addr, hostname, username, os, version, cpu, memory, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([
