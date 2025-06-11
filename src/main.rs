@@ -1,15 +1,17 @@
 // src/main.rs
 use axum::{
+    body::Body,
+    body::to_bytes,
     Router, serve,
     routing::any,
-    response::IntoResponse,
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode, Method, Uri},
 };
 use tokio::net::TcpListener;
 use std::net::SocketAddr;
 use urlencoding::encode;
 use std::sync::Arc;
 use crate::logging::LOGGER;
+use crate::logging::log_request_debug;
 
 // Internal modules
 mod config;
@@ -20,6 +22,7 @@ mod api_authorized_keys;
 mod api_heartbeat;
 mod api_sysinfo;
 mod api_session;
+mod api_ab;
 
 /// Application-wide shared state (DB pool, secrets, etc.)
 #[derive(Clone)]
@@ -29,13 +32,28 @@ struct AppState {
     rd_public_key: String,
 }
 
-/// CORS/Options handler for all /api routes
-async fn options_handler() -> impl IntoResponse {
-    let mut headers = HeaderMap::new();
-    headers.insert("Access-Control-Allow-Origin", "*".parse().unwrap());
-    headers.insert("Access-Control-Allow-Methods", "GET, POST, OPTIONS".parse().unwrap());
-    headers.insert("Access-Control-Allow-Headers", "Content-Type, Authorization".parse().unwrap());
-    (StatusCode::OK, headers)
+/// CORS/Options handler für alle /api routes + Logging bei unbekannten Endpunkten
+pub async fn options_handler(
+    method: Method,
+    uri: Uri,
+    headers: HeaderMap,
+    body: Body,
+) -> impl axum::response::IntoResponse {
+    // Body als String auslesen (ggf. leer)
+    let body_bytes = to_bytes(body, 65536).await.unwrap_or_default();
+    let body_str = std::str::from_utf8(&body_bytes).unwrap_or("<non-utf8-body>");
+
+    // Extrahiere Query-String explizit:
+    let query_str = uri.query().unwrap_or("");
+
+    log_request_debug(&method, &uri, query_str, &headers, body_str);
+
+    // CORS-Header
+    let mut response_headers = HeaderMap::new();
+    response_headers.insert("Access-Control-Allow-Origin", "*".parse().unwrap());
+    response_headers.insert("Access-Control-Allow-Methods", "GET, POST, OPTIONS".parse().unwrap());
+    response_headers.insert("Access-Control-Allow-Headers", "Content-Type, Authorization".parse().unwrap());
+    (StatusCode::OK, response_headers)
 }
 
 // Signal handling for graceful shutdown (SIGINT, SIGTERM)
@@ -85,7 +103,7 @@ async fn main() {
         rd_public_key: conf.rd_public_key,
     });
 
-    // Build the API router WITHOUT logging middleware!
+    // Build the API router
     let api_router = Router::new()
         .route("/login", api_auth::routes())
         .route("/login-options", api_auth::login_options_route())
@@ -95,6 +113,7 @@ async fn main() {
         .route("/sysinfo", api_sysinfo::routes())
         .route("/audit/conn", api_session::routes())
         .route("/session", api_session::session_routes())
+        .merge(api_ab::ab_routes())
         .route("/*path", any(options_handler)) // catch-all for CORS/OPTIONS
         .with_state(shared_state.clone());
 

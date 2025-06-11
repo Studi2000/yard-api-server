@@ -6,6 +6,8 @@ use std::path::Path;
 use std::sync::Mutex;
 use chrono::Local;
 use once_cell::sync::Lazy;
+use axum::http::{HeaderMap, Method, Uri};
+use std::fmt::Write as FmtWrite;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LogLevel {
@@ -25,6 +27,26 @@ impl LogLevel {
 pub struct Logger {
     pub log_level: LogLevel,
     log_file_path: String,
+}
+
+// Diese Funktion loggt Request-Daten, nur im DEBUG-Modus
+pub fn log_request_debug(
+    method: &Method,
+    uri: &Uri,
+    query: &str,
+    headers: &HeaderMap,
+    body: &str,
+) {
+    let mut msg = String::new();
+    let _ = write!(
+        &mut msg,
+        "API-Request: {} {}\nQuery: {}\nHeaders: {:#?}\nBody: {}\n",
+        method, uri, query, headers, body
+    );
+    let logger = LOGGER.lock().unwrap();
+    if logger.log_level == LogLevel::Debug {
+        logger.log_with_level(LogLevel::Debug, &msg);
+    }
 }
 
 impl Logger {

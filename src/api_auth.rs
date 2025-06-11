@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::{logging::LOGGER, AppState};
 use argon2::PasswordVerifier;
 use jsonwebtoken::{encode as jwt_encode, EncodingKey, Header};
+use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
 use chrono::Utc;
 
 #[derive(Deserialize, Serialize)]
@@ -24,6 +25,27 @@ pub struct UserRow {
     pub id: i32,
     pub username: String,
     pub password_hash: String,
+    pub role: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Claims {
+    pub sub: i32,           // User-ID
+    pub username: String,   // Username
+    pub role: String,       // Rolle (admin/user)
+    pub exp: i64,           // Ablauf
+}
+
+pub fn extract_claims_from_auth_header(headers: &HeaderMap, jwt_secret: &str) -> Option<Claims> {
+    // Hole das Authorization-Header
+    let auth_header = headers.get("authorization").and_then(|v| v.to_str().ok())?;
+    let token = auth_header.strip_prefix("Bearer ").unwrap_or(auth_header);
+
+    decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(jwt_secret.as_bytes()),
+        &Validation::new(Algorithm::HS256)
+    ).ok().map(|data| data.claims)
 }
 
 pub async fn login_handler(
@@ -52,7 +74,7 @@ pub async fn login_handler(
     }
 
     let user = sqlx::query_as::<_, UserRow>(
-        "SELECT id, username, password_hash FROM users WHERE username = ? LIMIT 1"
+        "SELECT id, username, password_hash, role FROM users WHERE username = ? LIMIT 1"
     )
     .bind(&payload.username)
     .fetch_optional(&state.db)
@@ -64,14 +86,15 @@ pub async fn login_handler(
             .verify_password(payload.password.as_bytes(), &argon2::PasswordHash::new(&user.password_hash).unwrap())
             .is_ok() {
 
+            let claims = Claims {
+                sub: user.id,
+                username: user.username.clone(),
+                role: user.role.clone(),
+                exp: (Utc::now().timestamp() + 60 * 60 * 24 * 14), // 14 Tage
+            };
             let token = jwt_encode(
                 &Header::default(),
-                &serde_json::json!({
-                    "sub": user.id,
-                    "username": user.username,
-                    "iat": Utc::now().timestamp(),
-                    "exp": Utc::now().timestamp() + 3600
-                }),
+                &claims,
                 &EncodingKey::from_secret(state.jwt_secret.as_bytes())
             ).unwrap();
 
@@ -80,7 +103,11 @@ pub async fn login_handler(
             return Json(serde_json::json!({
                 "access_token": token,
                 "type": "access_token",
-                "user": { "name": user.username }
+                "user": {
+                    "id": user.id,
+                    "name": user.username,
+                    "role": user.role
+                }
             }));
         }
     }
