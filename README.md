@@ -116,45 +116,84 @@ If you are running YARD API Server behind a reverse proxy (such as **nginx**, **
 Example tables used by YARD API Server:
 
 ```sql
+CREATE DATABASE IF NOT EXISTS `yard-api-server` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `yard-api-server`;
+
+DROP TABLE IF EXISTS `address_books`;
+CREATE TABLE `address_books` (
+    `id` int(11) NOT NULL,
+    `user_id` int(11) NOT NULL,
+    `name` varchar(128) NOT NULL,
+    `max_peer` int(11) DEFAULT 0,
+    `tags` text DEFAULT NULL,
+    `tag_colors` text DEFAULT NULL,
+    `created_at` datetime DEFAULT NULL,
+    `updated_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `address_book_peers`;
+CREATE TABLE `address_book_peers` (
+    `address_book_id` int(11) NOT NULL,
+    `peer_id` varchar(32) NOT NULL,
+    `alias` varchar(128) DEFAULT NULL,
+    `tags` varchar(255) NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `peers`;
 CREATE TABLE `peers` (
-     `id` varchar(32) NOT NULL,
-     `uuid` varchar(64) NOT NULL,
-     `ip_addr` varchar(64) DEFAULT NULL,
-     `hostname` varchar(100) DEFAULT NULL,
-     `username` varchar(64) DEFAULT NULL,
-     `os` varchar(128) DEFAULT NULL,
-     `version` varchar(32) DEFAULT NULL,
-     `cpu` varchar(128) DEFAULT NULL,
-     `memory` varchar(32) DEFAULT NULL,
-     `last_seen` datetime NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+    `id` varchar(32) NOT NULL,
+    `uuid` varchar(64) NOT NULL,
+    `ip_addr` varchar(64) DEFAULT NULL,
+    `hostname` varchar(100) DEFAULT NULL,
+    `username` varchar(64) DEFAULT NULL,
+    `os` varchar(128) DEFAULT NULL,
+    `version` varchar(32) DEFAULT NULL,
+    `cpu` varchar(128) DEFAULT NULL,
+    `memory` varchar(32) DEFAULT NULL,
+    `last_seen` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `sessions`;
 CREATE TABLE `sessions` (
-     `id` int(11) NOT NULL,
-     `uuid` varchar(64) NOT NULL,
-     `start_time` datetime NOT NULL,
-     `end_time` datetime NOT NULL,
-     `viewer_name` varchar(32) NOT NULL,
-     `viewer_id` varchar(32) NOT NULL,
-     `target_id` varchar(32) NOT NULL,
-     `last_seen` datetime DEFAULT NULL
+    `id` int(11) NOT NULL,
+    `uuid` varchar(64) NOT NULL,
+    `start_time` datetime NOT NULL,
+    `end_time` datetime NOT NULL,
+    `viewer_name` varchar(32) NOT NULL,
+    `viewer_id` varchar(32) NOT NULL,
+    `target_id` varchar(32) NOT NULL,
+    `last_seen` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
-     `id` int(11) NOT NULL,
-     `username` varchar(255) NOT NULL,
-     `password_hash` text NOT NULL,
-     `display_name` varchar(200) DEFAULT NULL
+    `id` int(11) NOT NULL,
+    `username` varchar(255) NOT NULL,
+    `password_hash` text NOT NULL,
+    `display_name` varchar(200) DEFAULT NULL,
+    `role` enum('admin','user') NOT NULL DEFAULT 'user'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `peers` ADD PRIMARY KEY (`id`),
-    ADD UNIQUE KEY `uniq_uuid` (`uuid`);
+ALTER TABLE `address_books`
+    ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
 
-ALTER TABLE `sessions` ADD PRIMARY KEY (`id`,`uuid`);
+ALTER TABLE `address_book_peers`
+    ADD PRIMARY KEY (`address_book_id`,`peer_id`);
+
+ALTER TABLE `peers`
+    ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_uuid` (`uuid`);
+
+ALTER TABLE `sessions`
+    ADD PRIMARY KEY (`id`,`uuid`);
 
 ALTER TABLE `users`
     ADD PRIMARY KEY (`id`),
-    ADD UNIQUE KEY `username` (`username`);
+  ADD UNIQUE KEY `username` (`username`);
+
+ALTER TABLE `address_books`
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 ALTER TABLE `users`
     MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;

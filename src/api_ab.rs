@@ -67,6 +67,13 @@ pub async fn post_ab_handler(
     Json(body): Json<serde_json::Value>,
 ) -> (StatusCode, Json<serde_json::Value>) {
 
+    let ip_addr = headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(',').next())
+        .unwrap_or("127.0.0.1")
+        .trim();
+
     let now = Utc::now().naive_utc();
 
     // 1. Logging
@@ -84,6 +91,7 @@ pub async fn post_ab_handler(
         ),
     };
     let user_id = claims.sub;
+    let username = claims.username;
 
     // 3. Datenstring extrahieren und deserialisieren
     let data_str = match body.get("data").and_then(|v| v.as_str()) {
@@ -149,11 +157,13 @@ pub async fn post_ab_handler(
             .ok();
     }
 
+    LOGGER.lock().unwrap().log_with_level(
+        crate::logging::LogLevel::Info,
+        &format!("/api/ab: Address book successfully updated: username={}, remote_ip={}", &username, &ip_addr.strip_prefix("::ffff:").unwrap_or(&ip_addr)),
+    );
+
     (StatusCode::OK, Json(serde_json::json!({"result": "ok"})))
 }
-
-
-
 
 pub async fn get_ab_handler(
     State(state): State<Arc<AppState>>,
@@ -167,34 +177,53 @@ pub async fn get_ab_handler(
             Json(serde_json::json!({"error": "Invalid or missing token"}))
         ),
     };
+
+    let ip_addr = headers
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.split(',').next())
+        .unwrap_or("127.0.0.1")
+        .trim();
+
     let user_id = claims.sub;
     let username = claims.username;
 
     // 2. Fetch or create the address book for this user
 
-    let address_book_id = match sqlx::query("SELECT id FROM address_books WHERE user_id = ? LIMIT 1")
+let address_book_id = match sqlx::query("SELECT id FROM address_books WHERE user_id = ? LIMIT 1")
+    .bind(user_id)
+    .fetch_optional(&state.db)
+    .await
+    .unwrap()
+{
+    Some(row) => row.get::<i32, _>("id"),
+    None => {
+        let now = Utc::now().naive_utc(); // Aktuelle UTC Zeit
+        let insert_id = sqlx::query(
+            "INSERT INTO address_books (user_id, max_peer, created_at, updated_at) VALUES (?, ?, ?, ?)"
+        )
         .bind(user_id)
-        .fetch_optional(&state.db)
+        .bind(10)
+        .bind(now)
+        .bind(now)
+        .execute(&state.db)
         .await
         .unwrap()
-    {
-        Some(row) => row.get::<i32, _>("id"),
-        None => {
-            let now = Utc::now().naive_utc(); // Current UTC time as NaiveDateTime
-            let insert_id = sqlx::query(
-                "INSERT INTO address_books (user_id, max_peer, created_at, updated_at) VALUES (?, ?, ?, ?)"
-            )
-            .bind(user_id)
-            .bind(10)
-            .bind(now)
-            .bind(now)
-            .execute(&state.db)
-            .await
-            .unwrap()
-            .last_insert_id();
-            insert_id as i32
-        }
-    };
+        .last_insert_id();
+
+        // Loggen, bevor wir die ID zurückgeben
+        LOGGER.lock().unwrap().log_with_level(
+            crate::logging::LogLevel::Info,
+            &format!(
+                "/api/ab: Address book successfully created: username={}, remote_ip={}",
+                &username,
+                &ip_addr.strip_prefix("::ffff:").unwrap_or(&ip_addr)
+            ),
+        );
+
+        insert_id as i32
+    }
+};
 
     // Read tags and tag_colors
     let (tags_db, tag_colors_db): (Option<String>, Option<String>) = sqlx::query_as(
