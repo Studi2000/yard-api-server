@@ -13,12 +13,17 @@ use std::fmt::Write as FmtWrite;
 pub enum LogLevel {
     Info,
     Debug,
+    Warn,
+    Error
 }
 
 impl LogLevel {
     pub fn from_str(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "DEBUG" => LogLevel::Debug,
+            "INFO" => LogLevel::Info,
+            "WARN" => LogLevel::Warn,
+            "ERROR" => LogLevel::Error,
             _ => LogLevel::Info,
         }
     }
@@ -73,8 +78,10 @@ impl Logger {
     pub fn log_with_level(&self, level: LogLevel, message: &str) {
         // Debug gibt alles aus, Info nur Info
         let should_log = match self.log_level {
-            LogLevel::Debug => true, // Debug loggt alles
-            LogLevel::Info => level == LogLevel::Info,
+            LogLevel::Debug => true,
+            LogLevel::Info => matches!(level, LogLevel::Info | LogLevel::Warn | LogLevel::Error),
+            LogLevel::Warn => matches!(level, LogLevel::Warn | LogLevel::Error),
+            LogLevel::Error => matches!(level, LogLevel::Error),
         };
 
         if should_log {

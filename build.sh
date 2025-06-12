@@ -16,3 +16,4 @@ sudo cp -f "target/release/$BINARY_NAME" /usr/local/bin/
 
 echo "Done! $BINARY_NAME has been installed to /usr/local/bin."
 systemctl restart yard-api-server
+tail -f /var/log/yard-api-server/yard-api-server.log

@@ -4,7 +4,6 @@ use std::sync::Arc;
 use crate::{AppState, api_auth::extract_claims_from_auth_header};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
-use std::collections::{HashMap, HashSet};
 use crate::logging::LOGGER;
 use chrono::Utc;
 use serde_json::Value;
@@ -47,10 +46,10 @@ pub struct PeerEntry {
 #[derive(Deserialize, Debug)]
 pub struct PostPeerEntry {
     pub id: String,
-    pub hash: Option<String>,
-    pub username: Option<String>,
-    pub hostname: Option<String>,
-    pub platform: Option<String>,
+    //pub hash: Option<String>,
+    //pub username: Option<String>,
+    //pub hostname: Option<String>,
+    //pub platform: Option<String>,
     pub alias: Option<String>,
     pub tags: Vec<String>,
 }

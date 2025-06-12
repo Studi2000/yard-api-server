@@ -6,6 +6,7 @@ use axum::{
     routing::post,
     Json,
     http::StatusCode,
+    http::HeaderMap,
 };
 use std::sync::Arc;
 use chrono::Utc;
@@ -41,6 +42,7 @@ pub async fn audit_conn_handler(
                 crate::logging::LogLevel::Debug,
                 &format!("[Payload] /api/audit/conn: {}", payload_json),
             );
+
         }
     } else {
         LOGGER.lock().unwrap().log(&format!("/api/audit/conn {:?}", payload));
@@ -134,6 +136,7 @@ pub async fn audit_conn_handler(
 
 pub async fn session_event_handler(
     State(_state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Json(payload): Json<SessionEventPayload>,
 ) -> impl IntoResponse {
     if LOGGER.lock().unwrap().log_level == crate::logging::LogLevel::Debug {
@@ -141,6 +144,12 @@ pub async fn session_event_handler(
             LOGGER.lock().unwrap().log_with_level(
                 crate::logging::LogLevel::Debug,
                 &format!("[Payload] /api/session: {}", payload_json),
+            );
+            // Header als String loggen
+            let headers_str = format!("{:?}", headers);
+            LOGGER.lock().unwrap().log_with_level(
+                crate::logging::LogLevel::Debug,
+                &format!("[Headers] /api/session: {}", headers_str),
             );
         }
     } else {

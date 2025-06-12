@@ -51,11 +51,12 @@ pub struct HeartbeatRequest {
 }
 
 /// Heartbeat aktualisiert nur Sitzungen und Peer-Lastseen (Peer-Details können via /api/sysinfo geschrieben werden)
-async fn update_session_last_seen(db: &MySqlPool, uuid: &str, conns: &Option<Vec<i32>>) {
+async fn update_session_last_seen(db: &MySqlPool, uuid: &str, conns: &Option<Vec<i32>>, ip_addr: &str) {
     let now = Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
     if let Some(conns) = conns {
         for &conn_id in conns {
-            let _ = sqlx::query(
+            // Ergebnis des Updates nicht als _, sondern z.B. als res speichern:
+            let res = sqlx::query(
                 "UPDATE sessions SET last_seen = ? WHERE id = ? AND uuid = ?"
             )
             .bind(&now)
@@ -63,6 +64,35 @@ async fn update_session_last_seen(db: &MySqlPool, uuid: &str, conns: &Option<Vec
             .bind(uuid)
             .execute(db)
             .await;
+
+            match res {
+                Ok(r) => {
+                    if r.rows_affected() == 0 {
+                        // Logging für fehlgeschlagenes Update, vermutlich falsche UUID oder Angriffsversuch
+                        LOGGER.lock().unwrap().log_with_level(
+                            crate::logging::LogLevel::Warn,
+                            &format!(
+                                "/api/session: Heartbeat update failed: id={}, uuid={}, remote_ip={}",
+                                conn_id,
+                                uuid,
+                                ip_addr.strip_prefix("::ffff:").unwrap_or(&ip_addr)
+                            ),
+                        );
+                    }
+                }
+                Err(e) => {
+                    LOGGER.lock().unwrap().log_with_level(
+                        crate::logging::LogLevel::Error,
+                        &format!(
+                            "/api/session: Heartbeat update DB-Error: id={}, uuid={}, remote_ip={}, error={:?}",
+                            conn_id,
+                            uuid,
+                            ip_addr,
+                            e
+                        ),
+                    );
+                }
+            }
         }
     }
 }
@@ -92,6 +122,16 @@ async fn update_peer_last_seen(db: &MySqlPool, id: i32, uuid: &str, ip_addr: &st
             .bind(ip_addr)
             .execute(db)
             .await;
+
+            LOGGER.lock().unwrap().log_with_level(
+                crate::logging::LogLevel::Info,
+                &format!(
+                    "/api/heartbeat: New device added to peer: id={}, uuid={}, remote_ip={}",
+                    id,
+                    uuid,
+                    ip_addr.strip_prefix("::ffff:").unwrap_or(&ip_addr)
+                ),
+            );
         }
     }
 }
@@ -99,12 +139,30 @@ async fn update_peer_last_seen(db: &MySqlPool, id: i32, uuid: &str, ip_addr: &st
 /// Cleanup abgelaufener Sessions (älter als 5 Minuten)
 async fn cleanup_expired_sessions(db: &MySqlPool) {
     let cutoff = (Utc::now() - Duration::minutes(5)).format("%Y-%m-%d %H:%M:%S").to_string();
-    let _ = sqlx::query(
+    let res = sqlx::query(
         "UPDATE sessions SET end_time = last_seen WHERE end_time IS NULL AND last_seen < ?"
     )
     .bind(&cutoff)
     .execute(db)
     .await;
+
+    match res {
+        Ok(r) => {
+            let dead_sessions = r.rows_affected();
+            if dead_sessions > 0 {
+                LOGGER.lock().unwrap().log_with_level(
+                    crate::logging::LogLevel::Warn,
+                    &format!("{} dead sessions closed!", dead_sessions),
+                );
+            }
+        }
+        Err(e) => {
+            LOGGER.lock().unwrap().log_with_level(
+                crate::logging::LogLevel::Error,
+                &format!("cleanup_expired_sessions() DB-Error: {:?}", e),
+            );
+        }
+    }
 }
 
 fn ipv4_to_ipv6(ip: &str) -> String {
@@ -142,7 +200,7 @@ pub async fn heartbeat_handler(
         if let Ok(payload_json) = serde_json::to_string(&payload) {
             LOGGER.lock().unwrap().log_with_level(
                 crate::logging::LogLevel::Debug,
-                &format!("[Payload] /api/heartbeat: {}, IP-Addr={}", payload_json, ip_addr),
+                &format!("[Payload] /api/heartbeat: {}, IP-Addr={}", payload_json, ip_addr.strip_prefix("::ffff:").unwrap_or(&ip_addr)),
             );
         }
     } else {
@@ -154,7 +212,7 @@ pub async fn heartbeat_handler(
    }
 
     update_peer_last_seen(&state.db, payload.id, &payload.uuid, &ip_addr).await;
-    update_session_last_seen(&state.db, &payload.uuid, &payload.conns).await;
+    update_session_last_seen(&state.db, &payload.uuid, &payload.conns, &ip_addr).await;
     cleanup_expired_sessions(&state.db).await;
 
     Json(serde_json::json!({ "message": "200 OK" }))
