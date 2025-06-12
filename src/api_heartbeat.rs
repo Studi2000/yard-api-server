@@ -194,19 +194,13 @@ pub async fn heartbeat_handler(
 
     let ip_addr = ipv4_to_ipv6(ip_addr);
 
-    let token = headers
-        .get("authorization")
-        .and_then(|hv| hv.to_str().ok())
-        .unwrap_or("<no token found>");
-    let token_only = token.strip_prefix("Bearer ").unwrap_or(token);
-
     // Debug: Logge komplette Payload als JSON
     if LOGGER.lock().unwrap().log_level == crate::logging::LogLevel::Debug {
         // Versuche, die Payload zu serialisieren
         if let Ok(payload_json) = serde_json::to_string(&payload) {
             LOGGER.lock().unwrap().log_with_level(
                 crate::logging::LogLevel::Debug,
-                &format!("[Payload] /api/heartbeat: {}, remote_ip={}, bearer={}", payload_json, ip_addr.strip_prefix("::ffff:").unwrap_or(&ip_addr), token_only),
+                &format!("[Payload] /api/heartbeat: {}, remote_ip={}", payload_json, ip_addr.strip_prefix("::ffff:").unwrap_or(&ip_addr), token_only),
             );
         }
     } else {
