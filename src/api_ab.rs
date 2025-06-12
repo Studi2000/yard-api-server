@@ -301,7 +301,7 @@ let address_book_id = match sqlx::query("SELECT id FROM address_books WHERE user
         LOGGER.lock().unwrap().log_with_level(
             crate::logging::LogLevel::Debug,
             &format!(
-                "[Get] /api/ab: User_ID={}, Username={}, AddressBook_ID={}, Bearer={}",
+                "[Get] /api/ab: user_id={}, username={}, address_book_id={}, bearer={}",
                 user_id, username, address_book_id, token_only
             )
         );
