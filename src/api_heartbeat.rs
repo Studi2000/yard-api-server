@@ -200,7 +200,7 @@ pub async fn heartbeat_handler(
         if let Ok(payload_json) = serde_json::to_string(&payload) {
             LOGGER.lock().unwrap().log_with_level(
                 crate::logging::LogLevel::Debug,
-                &format!("[Payload] /api/heartbeat: {}, remote_ip={}", payload_json, ip_addr.strip_prefix("::ffff:").unwrap_or(&ip_addr), token_only),
+                &format!("[Payload] /api/heartbeat: {}, remote_ip={}", payload_json, ip_addr.strip_prefix("::ffff:").unwrap_or(&ip_addr)),
             );
         }
     } else {
